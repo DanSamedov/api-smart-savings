@@ -16,4 +16,4 @@ app = FastAPI(
 @app.get("/")
 def root():
     """Base app endpoint."""
-    return standard_response(status="success", message="SmartSave API is running")
+    return standard_response(status="success", message="API is live.")
