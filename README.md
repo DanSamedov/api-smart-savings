@@ -36,7 +36,7 @@ pip install -r requirements.txt
 4. **Set up environment variables**
 
 - Copy `.env.example` -> `.env`
-- Fill in the required values provided privately by the project manager (@heisdanielade)
+- Fill in the required values provided privately by the project manager ([@heisdanielade](https://github.com/heisdanielade))
 
 5. **Run the app**
 
