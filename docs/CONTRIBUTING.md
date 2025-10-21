@@ -76,6 +76,12 @@ test: added test for verify email endpoint
 ## Project Structure
 
 - Follow the folder structure conventions already in place.
+- Add a comment on the first line of every python file, indicating the directory i.e.,
+
+```bash
+# app/services/auth_service.py
+```
+
 - Keep consistent naming ( `snake_case` for Python)
 - Avoid pushing unnecessary files; ensure `.gitignore` is up-to-date.
 
