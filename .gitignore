@@ -1,0 +1,16 @@
+# Ignore Python virtual environments
+venv/
+__pycache__/
+*.pyc
+
+
+# Environment variable
+.env
+
+# Logs
+logs/
+*.log
+
+# Editor files
+.vscode/
+.idea/
