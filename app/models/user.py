@@ -1,34 +1,38 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, func
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Boolean
+from pydantic import EmailStr
 
 
-class Role(str, Enum):
+class Role(str, StrEnum):
     """Enumeration of user roles with increasing privileges."""
+
     USER = "USER"
     ADMIN = "ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
 
 
-class UserBase(SQLModel, table=True):
+class UserBase(SQLModel):
     """Base user model containing core authentication and identity fields."""
 
     __tablename__ = "app_user"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(nullable=False, unique=True)
+    email: EmailStr
     full_name: Optional[str] = Field(default=None)
-    password_hash: str = Field(nullable=False)
+    password_hash: str
     role: Role = Field(default=Role.USER)
-    is_verified: bool = Field(default=False)
+    is_verified: bool = Field(default=False, nullable=False)
     is_enabled: bool = Field(default=True)
-    is_deleted: bool = Field(default=False)
+    is_deleted: bool = Field(
+        sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
 
 
-class User(UserBase):
+class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
 
     created_at: Optional[datetime] = Field(
@@ -42,9 +46,20 @@ class User(UserBase):
         )
     )
     last_login_at: Optional[datetime] = None
-    profile_image: Optional[str] = None
     language_preference: Optional[str] = None
-    status: Optional[str] = None
     failed_login_attempts: int = Field(default=0)
     last_failed_login_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
+
+    def __setattr__(self, name, value) -> None:
+        """
+        Prevent update for `created_at` field.
+        NOTE: Ultimate protection should be enforced in the DB.
+        """
+        # Allow setting 'created_at' during initialization
+        if name == "created_at" and getattr(self, "_initialized", False):
+            raise AttributeError("created_at is immutable")
+        super().__setattr__(name, value)
+
+    def __post_init__(self):
+        self._initialized = True
