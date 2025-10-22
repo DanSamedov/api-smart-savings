@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Optional
 
@@ -35,9 +35,7 @@ class UserBase(SQLModel):
 class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
 
-    created_at: Optional[datetime] = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now())
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
@@ -47,6 +45,9 @@ class User(UserBase, table=True):
     )
     last_login_at: Optional[datetime] = None
     language_preference: Optional[str] = None
+
+    verification_code: Optional[str] = None
+    verification_code_expires_at: Optional[datetime] = None
     failed_login_attempts: int = Field(default=0)
     last_failed_login_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
