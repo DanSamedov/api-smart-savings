@@ -8,7 +8,7 @@
 
 - **Python 3.9+**
 - **Docker** installed and running
-- **PostgreSQL** installed (client, CLI, and pdAdmin recommended)
+- **PostgreSQL** installed (client, CLI, and pgAdmin recommended)
 
 ### Setup Steps
 
