@@ -15,5 +15,10 @@ app = FastAPI(
 
 @app.get("/")
 def root():
-    """Base app endpoint."""
+    """
+    Base app endpoint.
+    
+    Returns:
+        Dict[str, Any]: Standard response containing API status
+    """
     return standard_response(status="success", message="API is live.")

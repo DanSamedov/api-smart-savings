@@ -1,0 +1,21 @@
+{
+    "name": "FastAPI Dev Container",
+    "dockerComposeFile": [
+        "../docker-compose.yml",
+        "../docker-compose.override.yml"
+    ],
+    "service": "api",
+    "workspaceFolder": "/app",
+    "shutdownAction": "stopCompose",
+    "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+    ],
+    "settings": {
+        "python.analysis.extraPaths": [
+            "/app"
+        ],
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+    },
+    "remoteUser": "root"
+}
