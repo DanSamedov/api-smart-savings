@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from .utils.response import standard_response
+from .core.logging import log_requests
 
 app = FastAPI(
     title="SmartSave API",
@@ -13,6 +14,20 @@ app = FastAPI(
 )
 
 
+
+
+# =======================================
+# MIDDLEWARE
+# =======================================
+app.middleware("http")(log_requests)
+
+
+
+
+
+# =======================================
+# BASE ROUTES
+# =======================================
 @app.get("/")
 def root():
     """
