@@ -1,7 +1,8 @@
 # app/core/security.py
+
 from passlib.context import CryptContext
 
-# Configure passlib with bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

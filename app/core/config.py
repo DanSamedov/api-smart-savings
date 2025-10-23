@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: Optional[str] = None
 
     JWT_SECRET_KEY: Optional[str] = None
-    JWT_EXPIRATION_TIME: int = 6 * 60 * 60  # default to 6 hours if not set
-
+    JWT_EXPIRATION_TIME: Optional[int] = None
+    JWT_SIGNING_ALGORITHM: Optional[str] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
