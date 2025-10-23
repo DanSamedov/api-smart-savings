@@ -14,7 +14,7 @@ from app.utils.helpers import mask_ip
 # Detect environment
 ENV = settings.APP_ENV
 
-logger = logging.getLogger("petcare")
+logger = logging.getLogger("savings")
 logger.setLevel(logging.DEBUG)
 logger.propagate = False
 
@@ -35,7 +35,7 @@ if ENV != "production":
     log_dir = Path(__file__).parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
     file_handler = RotatingFileHandler(
-        log_dir / "smartsave-api-v1.log", maxBytes=5_000_000, backupCount=3
+        log_dir / "savings-api-v1.log", maxBytes=5_000_000, backupCount=3
     )
     file_handler.setFormatter(
         logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
