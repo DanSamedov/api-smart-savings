@@ -7,6 +7,7 @@ from fastapi.openapi.utils import get_openapi
 from .utils.response import standard_response
 from .core.logging import log_requests
 from .api.dependencies import authenticate
+from app.core.rate_limiter import limiter
 
 app = FastAPI(
     title="SmartSave API",
@@ -15,7 +16,7 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
-
+app.state.limiter = limiter
 
 # =======================================
 # MIDDLEWARE
