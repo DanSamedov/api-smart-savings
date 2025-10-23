@@ -1,7 +1,39 @@
 # app/utils/helper.py
-import random
+
+import secrets
+import string
+
+def generate_secure_code(length=6):
+    return ''.join(secrets.choice(string.digits) for _ in range(length))
 
 
-def generate_verification_code() -> str:
-    """Generate a random 6-digit verification code as a string."""
-    return f"{random.randint(100000, 999999)}"
+def mask_ip(ip: str) -> str:
+    """
+    Mask IP address for logging.
+    
+    Examples:
+        "192.168.1.100" -> "192.168.xxx"
+        "2001:0db8:85a3:0000:0000:8a2e:0370:7334" -> "2001:0db8:85a3:0000:xxxx:xxxx"
+    """
+    if ":" in ip:  # IPv6
+        parts = ip.split(":")
+        return ":".join(parts[:4]) + ":xxxx:xxxx"
+    else:  # IPv4
+        parts = ip.split(".")
+        return ".".join(parts[:2] + ["xxx"])
+
+
+def mask_email(email: str) -> str:
+    """
+    Masks an email address for logging.
+
+    Example:
+        "johndoe@example.com" -> "joh***@example.com"
+    """
+    try:
+        local, domain = email.split("@")
+        visible = 3 if len(local) > 3 else len(local)
+        masked_local = local[:visible] + "*" * (len(local) - visible)
+        return f"{masked_local}@{domain}"
+    except Exception:
+        return "****@****"
