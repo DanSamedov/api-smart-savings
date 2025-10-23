@@ -41,7 +41,7 @@ pip install -r requirements.txt
 5. **Run the app**
 
 ```bash
-docker-compose up build
+docker-compose up --build
 ```
 
 Verify app is running by hitting **_http://localhost:3195_**
