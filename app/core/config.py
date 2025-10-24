@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: Optional[str] = None
     JWT_EXPIRATION_TIME: Optional[int] = None
     JWT_SIGNING_ALGORITHM: Optional[str] = None
+
+    IP_HASH_SALT: Optional[str] = None
+    LOG_RETENTION_DAYS: Optional[int] = None
+
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
