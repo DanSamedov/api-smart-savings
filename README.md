@@ -20,25 +20,18 @@ cd api-savings-app
 
 ```
 
-2. **Create and activate a virtual environment**
-
-```bash
-python -m venv venv
-venv\Scripts\activate        # On Windows
-```
-
-3. **Install dependencies**
+2. **Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Set up environment variables**
+3. **Set up environment variables**
 
 - Copy `.env.example` -> `.env`
 - Fill in the required values provided privately by the project manager ([@heisdanielade](https://github.com/heisdanielade))
 
-5. **Run the app**
+4. **Run the app**
 
 ```bash
 docker-compose up --build
