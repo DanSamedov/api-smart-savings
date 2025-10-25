@@ -1,5 +1,4 @@
 # app/core/jwt.py
-
 from datetime import datetime, timezone, timedelta
 from typing import Any, Union
 
@@ -8,9 +7,11 @@ from fastapi import HTTPException, status
 
 from .config import settings
 
+
 ALGORITHM = settings.JWT_SIGNING_ALGORITHM
 KEY = settings.JWT_SECRET_KEY
 EXPIRY = settings.JWT_EXPIRATION_TIME
+
 
 def decode_token(token: str) -> dict[str, Any]:
     """Decode JWT token."""
@@ -40,5 +41,3 @@ def create_access_token(data: dict[str, Union[str, int]]):
         to_encode, KEY,
         algorithm=ALGORITHM
     )
-    
-    
