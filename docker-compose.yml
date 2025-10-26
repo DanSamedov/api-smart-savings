@@ -10,7 +10,7 @@ services:
     volumes: 
       - .:/app
   db:
-    image: postgres:18
+    image: postgres:17
     container_name: savings-db
     restart: always
     env_file:

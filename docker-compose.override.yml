@@ -1,4 +1,4 @@
-# NOTE: For development
+# =========== NOTE: For development only ===========
 services:
   api:
-    command: uvicorn app.main:app --host 0.0.0.0 --port 3195 --reload
+    command: ["bash", "./scripts/start-dev.sh"]

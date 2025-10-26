@@ -12,10 +12,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app ./app
+COPY ./scripts ./scripts
+COPY ./migrations ./migrations
+COPY ./alembic.ini .
 
-# ------For start script-----
-# COPY ./start.sh ./start.sh
-# RUN chmod +x ./scripts/start.sh
-# CMD ["./scripts/start.sh"]
+RUN chmod +x ./scripts/start.sh ./scripts/start-dev.sh
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3195", "--reload"]
+CMD ["./scripts/start.sh"]
