@@ -23,7 +23,6 @@ class Settings(BaseSettings):
     DOCS_PASSWORD: Optional[str] = None
 
     ALLOWED_ORIGINS: Optional[str] = None
-    DATABASE_URL: Optional[str] = None
 
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = None
