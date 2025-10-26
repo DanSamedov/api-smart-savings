@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from slowapi.errors import RateLimitExceeded
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 
@@ -40,7 +40,7 @@ app.middleware("http")(log_requests)
 # =======================================
 # EXCEPTION HANDLERS
 # =======================================
-app.add_exception_handler(StarletteHTTPException, handlers.rate_limit_handler)
+app.add_exception_handler(RateLimitExceeded, handlers.rate_limit_handler)
 app.add_exception_handler(RequestValidationError, handlers.validation_exception_handler)
 app.add_exception_handler(Exception, handlers.internal_server_error_handler)
 
