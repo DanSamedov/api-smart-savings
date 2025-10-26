@@ -7,7 +7,7 @@ from sqlmodel import SQLModel, Field, Boolean
 from pydantic import EmailStr
 
 
-class Role(str, StrEnum):
+class Role(StrEnum):
     """Enumeration of user roles with increasing privileges."""
 
     USER = "USER"
