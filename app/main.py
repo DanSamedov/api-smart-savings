@@ -1,6 +1,7 @@
 # app/main.py
-
 from fastapi import FastAPI, Depends
+from fastapi.exceptions import RequestValidationError
+from slowapi.errors import RateLimitExceeded
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 
@@ -8,6 +9,8 @@ from .utils.response import standard_response
 from .core.logging import log_requests
 from .api.dependencies import authenticate
 from app.core.rate_limiter import limiter
+from app.utils import handlers
+
 
 app = FastAPI(
     title="SmartSave API",
@@ -37,9 +40,9 @@ app.middleware("http")(log_requests)
 # =======================================
 # EXCEPTION HANDLERS
 # =======================================
-
-
-
+app.add_exception_handler(RateLimitExceeded, handlers.rate_limit_handler)
+app.add_exception_handler(RequestValidationError, handlers.validation_exception_handler)
+app.add_exception_handler(Exception, handlers.internal_server_error_handler)
 
 
 

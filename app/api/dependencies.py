@@ -1,10 +1,10 @@
 # app/api/dependencies.py
-
 import secrets
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
 from app.core.config import settings
+
 
 security = HTTPBasic()
 
