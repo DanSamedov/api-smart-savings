@@ -1,11 +1,23 @@
 # app/db/session.py
 import os
 
-from sqlmodel import create_engine, Session
-from alchemy import event
+from dotenv import load_dotenv
+from sqlmodel import create_engine, Session, text
+from sqlalchemy import event
 
+load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+
+# Build connection URL
+DATABASE_URL = (
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
+)
+
 engine = create_engine(DATABASE_URL, echo=True)
 
 

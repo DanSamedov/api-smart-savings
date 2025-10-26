@@ -10,13 +10,13 @@ services:
     volumes: 
       - .:/app
   db:
-    image: postgres:15
+    image: postgres:18
     container_name: savings-db
     restart: always
     env_file:
       - .env
     ports:
-      - "5436:5436"
+      - "5436:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
