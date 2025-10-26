@@ -1,9 +1,9 @@
 # app/core/config.py
-
 from typing import Optional
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from fastapi_mail import ConnectionConfig
 from fastapi.templating import Jinja2Templates
 
@@ -46,8 +46,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()
