@@ -9,6 +9,7 @@
 - **Python 3.9+**
 - **Docker** installed and running
 - **PostgreSQL** installed (client, CLI, and pgAdmin recommended)
+- **Make** to run commands in Makefile
 
 ### Setup Steps
 
@@ -31,10 +32,12 @@ pip install -r requirements.txt
 - Copy `.env.example` -> `.env`
 - Fill in the required values provided privately by the project manager ([@heisdanielade](https://github.com/heisdanielade))
 
-4. **Run the app**
+4. **Commands**
 
 ```bash
-docker-compose up --build
+    make build          # Start app from docker
+    make down           # Stop app
+    make tests          # Run tests
 ```
 
 Verify app is running by hitting **_http://localhost:3195_**
