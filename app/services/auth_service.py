@@ -14,6 +14,7 @@ from app.schemas.auth_schemas import RegisterRequest, LoginRequest, VerifyEmailR
 from app.core.jwt import create_access_token, decode_token
 from app.core.security import generate_secure_code
 from app.services.email_service import EmailType, EmailService
+from app.utils.helpers import hash_ip
 
 class AuthService:
 
@@ -65,10 +66,10 @@ class AuthService:
 
         if background_tasks:
             background_tasks.add_task(
-                EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[user.email], code=verification_code)
+                EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[user.email], code=verification_code)
             )
         else:
-            await EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[user.email], code=verification_code)
+            await EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[user.email], code=verification_code)
 
     @staticmethod
     async def verify_user_email(
@@ -123,10 +124,10 @@ class AuthService:
 
         if background_tasks:
             background_tasks.add_task(
-                EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[existing_user.email])
+                EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[existing_user.email])
             )
         else:
-            await EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[existing_user.email])
+            await EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[existing_user.email])
 
     @staticmethod
     async def login_existing_user(
@@ -155,7 +156,7 @@ class AuthService:
             HTTPException: 403 Forbidden if the user account is not verified.
             HTTPException: 403 Forbidden after several invalid login attempts.
         """
-        ip = request.client.host  # type: ignore
+        ip = hash_ip(request.client.host)  # type: ignore
 
         stmt = select(User).where(User.email == login_request.email)
         existing_user = db.exec(stmt).one_or_none()
