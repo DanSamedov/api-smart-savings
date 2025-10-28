@@ -77,7 +77,7 @@ async def log_requests(request: Request, call_next):
 
     # Add additional attributes to the log record
     logger.info(
-        f"{request.method} {request.url.path} from {masked_ip} "
+        f"{request.method} {request.url.path}, "
         f"completed_in={process_time:.2f}ms, status_code={response.status_code}",
         extra={
             "method": request.method,

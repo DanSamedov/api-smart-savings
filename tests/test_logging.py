@@ -104,7 +104,7 @@ class TestLogRequests:
             return mock_response
 
         with patch("app.core.logging.logger") as mock_logger, \
-             patch("app.core.logging.mask_ip", return_value="192.168.xxx.xxx"):
+             patch("app.core.logging.hash_ip", return_value="192.168.xxx.xxx"):
             
             result = await log_requests(mock_request, mock_call_next)
 
@@ -113,11 +113,10 @@ class TestLogRequests:
             call_args = mock_logger.info.call_args
             assert "POST" in call_args[0][0]
             assert "/api/savings" in call_args[0][0]
-            assert "192.168.xxx.xxx" in call_args[0][0]
             assert call_args[1]["extra"]["status_code"] == 201
 
-    async def test_log_requests_with_ip_masking(self):
-        """Test log_requests masks IP addresses correctly."""
+    async def test_log_requests_with_ip_hashing(self):
+        """Test log_requests hashes IP addresses correctly."""
         mock_request = Mock(spec=Request)
         mock_request.method = "GET"
         mock_request.url.path = "/health"
@@ -130,11 +129,11 @@ class TestLogRequests:
             return mock_response
 
         with patch("app.core.logging.logger") as mock_logger, \
-             patch("app.core.logging.mask_ip", return_value="10.0.xxx.xxx") as mock_mask:
+             patch("app.core.logging.hash_ip", return_value="10.0.xxx.xxx") as mock_hash:
             
             await log_requests(mock_request, mock_call_next)
 
-            mock_mask.assert_called_once_with("10.0.0.1")
+            mock_hash.assert_called_once_with("10.0.0.1")
             call_args = mock_logger.info.call_args
             assert call_args[1]["extra"]["ip_anonymized"] == "10.0.xxx.xxx"
 
@@ -147,7 +146,7 @@ class TestLogRateLimitExceeded:
         mock_request.method = "POST"
 
         with patch("app.core.logging.logger") as mock_logger, \
-             patch("app.core.logging.mask_ip", return_value="203.0.xxx.xxx"):
+             patch("app.core.logging.hash_ip", return_value="203.0.xxx.xxx"):
             
             log_rate_limit_exceeded(mock_request, "203.0.113.1")
 
