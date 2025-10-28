@@ -1,5 +1,5 @@
 # Makefile for Alembic + Docker FastAPI
-.PHONY: build down downv makemigration migrate current downgrade tests
+.PHONY: build down downv makemigration migrate current downgrade tests-v tests-q
 
 
 # Build image and run containers
@@ -30,6 +30,10 @@ current:
 downgrade:
 	docker compose exec api alembic downgrade -1
 
+# Run all tests (Verbose mode)
+tests-v:
+	docker compose exec api pytest -v
+
 # Run all tests (Quiet mode)
-tests:
+tests-q:
 	docker compose exec api pytest -q
