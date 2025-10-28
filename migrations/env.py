@@ -13,7 +13,7 @@ from app.core.config import Settings
 # ================================
 # MODELS
 # ================================
-from app.models.user import User
+from app.models.user_model import User
 
 
 
