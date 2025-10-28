@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from core.config import settings
+from app.core.config import settings
 
 app_name = settings.APP_NAME
 

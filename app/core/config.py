@@ -54,10 +54,12 @@ settings = Settings()
 
 
 def get_mail_config():
+    mail_from = f"{settings.APP_NAME} <{settings.SMTP_USERNAME}>"
+    
     return ConnectionConfig(
         MAIL_USERNAME=settings.SMTP_USERNAME, # type: ignore
         MAIL_PASSWORD=settings.SMTP_PASSWORD, # type: ignore
-        MAIL_FROM=settings.APP_NAME, # type: ignore
+        MAIL_FROM=mail_from, # type: ignore
         MAIL_PORT=settings.SMTP_PORT, # type: ignore
         MAIL_SERVER=settings.SMTP_HOST, # type: ignore
         MAIL_STARTTLS=True,
