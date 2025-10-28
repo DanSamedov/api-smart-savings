@@ -61,17 +61,19 @@ class EmailService:
     @staticmethod
     async def send_templated_email(email_type: EmailType, email_to: list[str], code: str = None, reset_token: str = None, reset_time: str = None, verification_code: str = None):
 
-        if email_type not in EmailType:
-            logger.exception(
-                msg=f"Invalid email type '{email_type}'."
-            )
+        try:
+            email_type = EmailType(email_type)  # ensures it's a valid enum instance
+        except ValueError:
+            logger.exception(f"Invalid email type '{email_type}'")
+            return  # or raise an exception
+
         
         if email_type == EmailType.VERIFICATION and code:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="{{ code }} is your verification code",
+                subject_template=f"{ code } is your verification code",
                 template_rel_path="auth/email-verification.html",
-                context={"code": code},
+                context={"verification_code": code},
             )
         elif email_type == EmailType.WELCOME:
             await EmailService._send_email(
