@@ -1,7 +1,9 @@
 # app/services/email_service.py
+
 from enum import StrEnum
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from jinja2 import Template
+
 from app.core.logging import logger
 from app.utils.helpers import mask_email
 from app.core.config import TEMPLATES_DIR, get_mail_config
@@ -57,7 +59,7 @@ class EmailService:
             )
 
     @staticmethod
-    async def send_templated_email(email_to: list[str], email_type: EmailType, code: str = None, reset_token: str = None, reset_time: str = None, verification_code: str = None):
+    async def send_templated_email(email_type: EmailType, email_to: list[str], code: str = None, reset_token: str = None, reset_time: str = None, verification_code: str = None):
 
         if email_type not in EmailType:
             logger.exception(

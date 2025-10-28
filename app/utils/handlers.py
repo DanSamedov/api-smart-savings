@@ -5,8 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.core.logging import log_rate_limit_exceeded, logger
-from app.utils.response import standard_response
+from core.logging import log_rate_limit_exceeded, logger
+from .response import standard_response
 
 
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):

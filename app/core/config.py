@@ -1,4 +1,5 @@
 # app/core/config.py
+
 from typing import Optional
 from pathlib import Path
 
@@ -33,7 +34,8 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: Optional[str] = None
     JWT_EXPIRATION_TIME: Optional[int] = None
     JWT_SIGNING_ALGORITHM: Optional[str] = None
-
+    
+    MAX_FAILED_LOGIN_ATTEMPTS: Optional[int] = None
     IP_HASH_SALT: Optional[str] = None
     LOG_RETENTION_DAYS: Optional[int] = None
 
@@ -53,11 +55,11 @@ settings = Settings()
 
 def get_mail_config():
     return ConnectionConfig(
-        MAIL_USERNAME=settings.SMTP_USERNAME,
-        MAIL_PASSWORD=settings.SMTP_PASSWORD,
-        MAIL_FROM=settings.APP_NAME,
-        MAIL_PORT=settings.SMTP_PORT,
-        MAIL_SERVER=settings.SMTP_HOST,
+        MAIL_USERNAME=settings.SMTP_USERNAME, # type: ignore
+        MAIL_PASSWORD=settings.SMTP_PASSWORD, # type: ignore
+        MAIL_FROM=settings.APP_NAME, # type: ignore
+        MAIL_PORT=settings.SMTP_PORT, # type: ignore
+        MAIL_SERVER=settings.SMTP_HOST, # type: ignore
         MAIL_STARTTLS=True,
         MAIL_SSL_TLS=False,
         USE_CREDENTIALS=True,

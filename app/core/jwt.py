@@ -1,11 +1,12 @@
 # app/core/jwt.py
+
 from datetime import datetime, timezone, timedelta
 from typing import Any, Union
 
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
-from .config import settings
+from app.core.config import settings
 
 
 ALGORITHM = settings.JWT_SIGNING_ALGORITHM

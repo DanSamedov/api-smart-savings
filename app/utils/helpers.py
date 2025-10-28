@@ -1,10 +1,4 @@
-# app/utils/helper.py
-
-import secrets
-import string
-
-def generate_secure_code(length=6):
-    return ''.join(secrets.choice(string.digits) for _ in range(length))
+# app/utils/helpers.py
 
 
 def mask_ip(ip: str) -> str:
