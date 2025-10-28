@@ -3,13 +3,14 @@
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 
-from .utils.response import standard_response
-from .core.logging import log_requests, cleanup_old_logs
-from .api.dependencies import authenticate
+from app.utils.response import standard_response
+from app.core.logging import log_requests, cleanup_old_logs
+from app.api.dependencies import authenticate
 from app.core.rate_limiter import limiter
 from app.utils import handlers
 from app.api.routers import main_router
@@ -26,9 +27,10 @@ async def lifespan(app: FastAPI):
     # Startup Events
     cleanup_old_logs()
 
-    yield # App Runs 
+    yield  # App Runs
 
     # Shutdown Events
+
 
 app = FastAPI(
     title=f"{app_name} API",
@@ -57,8 +59,9 @@ app.include_router(main_router, prefix="/v1")
 # EXCEPTION HANDLERS
 # =======================================
 app.add_exception_handler(RateLimitExceeded, handlers.rate_limit_handler)
+app.add_exception_handler(StarletteHTTPException, handlers.http_exception_handler)
 app.add_exception_handler(RequestValidationError, handlers.validation_exception_handler)
-app.add_exception_handler(Exception, handlers.internal_server_error_handler)
+app.add_exception_handler(Exception, handlers.generic_exception_handler)
 
 
 # =======================================
@@ -68,7 +71,7 @@ app.add_exception_handler(Exception, handlers.internal_server_error_handler)
 def root():
     """
     Base app endpoint.
-    
+
     Returns:
         Dict[str, Any]: Standard response containing API status
     """
