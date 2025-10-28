@@ -1,8 +1,15 @@
+
 import pytest
+from unittest.mock import MagicMock
 from fastapi import HTTPException
 from fastapi.security import HTTPBasicCredentials
 
 import app.api.dependencies as auth_module
+
+
+@pytest.fixture(autouse=True)
+def patch_db_session(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_session", lambda: iter([]))
 
 
 @pytest.fixture(autouse=True)
