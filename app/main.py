@@ -5,10 +5,11 @@ from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
+from contextlib import asynccontextmanager
 
-from app.utils.response import standard_response
-from app.core.logging import log_requests
-from app.api.dependencies import authenticate
+from .utils.response import standard_response
+from .core.logging import log_requests, cleanup_old_logs
+from .api.dependencies import authenticate
 from app.core.rate_limiter import limiter
 from app.utils import handlers
 from app.api.routers import main_router
@@ -16,12 +17,26 @@ from app.core.config import settings
 
 app_name = settings.APP_NAME
 
+
+# =======================================
+# LIFESPAN EVENTS
+# =======================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup Events
+    cleanup_old_logs()
+
+    yield # App Runs 
+
+    # Shutdown Events
+
 app = FastAPI(
     title=f"{app_name} API",
     version="1.0.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 
