@@ -1,22 +1,15 @@
 import pytest
-from unittest.mock import MagicMock
 from fastapi import HTTPException
 from fastapi.security import HTTPBasicCredentials
 
-# Patch database session before importing the module
-@pytest.fixture(autouse=True)
-def patch_db(monkeypatch):
-    monkeypatch.setattr("app.db.session.create_engine", lambda *args, **kwargs: MagicMock())
-    monkeypatch.setattr("app.api.dependencies.get_session", lambda: iter([]))
-
-# Patch auth constants
+# Patch auth constants for tests
 @pytest.fixture(autouse=True)
 def patch_auth_constants(monkeypatch):
     """Default to valid credentials for most tests."""
     monkeypatch.setattr("app.api.dependencies.USERNAME", "admin")
     monkeypatch.setattr("app.api.dependencies.PASSWORD", "secret")
 
-# Import after patching
+# Import after global patches from conftest.py
 import app.api.dependencies as auth_module
 
 
