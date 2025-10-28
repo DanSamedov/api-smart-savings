@@ -5,7 +5,7 @@ import string
 import hashlib
 import os
 
-SALT = os.getenv("IP_HASH_SALT", "change_this_salt")
+SALT = os.getenv("IP_HASH_SALT")
 
 def generate_secure_code(length=6):
     return ''.join(secrets.choice(string.digits) for _ in range(length))
