@@ -5,12 +5,11 @@ from typing import Any
 from fastapi import Request, APIRouter, Depends, status, BackgroundTasks
 from sqlmodel import Session
 
-from db.session import get_session
-from models.user_model import User
-from core.rate_limiter import limiter
-from utils.response import standard_response
-from services.auth_service import AuthService
-from schemas.auth_schemas import RegisterRequest, VerifyEmailRequest
+from app.db.session import get_session
+from app.core.rate_limiter import limiter
+from app.utils.response import standard_response
+from app.services.auth_service import AuthService
+from app.schemas.auth_schemas import RegisterRequest, VerifyEmailRequest, LoginRequest
 
 
 router = APIRouter()
@@ -50,7 +49,7 @@ async def register(
 
 
 @router.post("/verify-email", status_code=status.HTTP_200_OK)
-@limiter.limit("5/minute")
+@limiter.limit("4/minute")
 async def verify_email(
     request: Request,
     verify_email_request: VerifyEmailRequest,
@@ -79,3 +78,36 @@ async def verify_email(
     await AuthService.verify_user_email(verify_email_request=verify_email_request, db=db)
 
     return standard_response(status="success", message="Your email has been verified successfully.")
+
+
+@router.post("/login", status_code=status.HTTP_200_OK)
+@limiter.limit("4/minute")
+async def login(
+    request: Request,
+    login_request: LoginRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """
+    Authenticate a user and issue an access token.
+
+    Accepts user login credentials and returns a JWT token upon successful authentication.
+
+    Args:
+        login_request (LoginRequest): User login credentials including email and password.
+
+    Returns:
+        dict(str, Any): Success message with access token and token details.
+
+    Raises:
+        HTTPException: 401 Unauthorized if login credentials are invalid.
+        HTTPException: 403 Forbidden if the user account is disabled (restricted or locked).
+        HTTPException: 403 Forbidden if the user account is not verified.
+        HTTPException: 403 Forbidden after several invalid login attempts.
+        HTTPException: 429 Too Many Requests if the rate limit is exceeded.
+    """
+    response = await AuthService.login_existing_user(request=request, login_request=login_request, db=db)
+
+    return standard_response(
+        status="success", message="Login successful", data=response
+    )
