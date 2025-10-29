@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     DOCS_USERNAME: Optional[str] = None
     DOCS_PASSWORD: Optional[str] = None
+    
+    TEST_EMAIL_ACCOUNTS: Optional[str] = None
 
     ALLOWED_ORIGINS: Optional[str] = None
 
