@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
@@ -15,8 +16,6 @@ from app.core.rate_limiter import limiter
 from app.utils import handlers
 from app.api.routers import main_router
 from app.core.config import settings
-
-app_name = settings.APP_NAME
 
 
 # =======================================
@@ -33,8 +32,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=f"{app_name} API",
+    title=f"{settings.APP_NAME} API",
     version="1.0.0",
+    description="Backend service for a smart savings app.",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -47,6 +47,18 @@ app.state.limiter = limiter
 # MIDDLEWARE
 # =======================================
 app.middleware("http")(log_requests)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[str(origin) for origin in settings.ALLOWED_ORIGINS] if settings.ALLOWED_ORIGINS is not None else ["http://localhost:3195"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "authorization",
+        "content-type",
+        "accept",
+        "x-requested-with"
+    ],
+)
 
 
 # =======================================
