@@ -14,7 +14,7 @@ from app.schemas.auth_schemas import RegisterRequest, LoginRequest, VerifyEmailR
 from app.core.jwt import create_access_token, decode_token
 from app.core.security import generate_secure_code
 from app.services.email_service import EmailType, EmailService
-from app.utils.helpers import hash_ip
+from app.utils.helpers import hash_ip, mask_email
 
 class AuthService:
 
@@ -171,8 +171,15 @@ class AuthService:
             existing_user.last_failed_login_at = datetime.now(timezone.utc)
 
             logger.warning(
-                f"Failed login attempt for user_id={existing_user.id}, IP={ip}"
-            )
+            msg="Failed login attempt",
+            extra={
+                "method": "POST",
+                "path": "/v1/auth/login",
+                "status_code": 401,
+                "ip_anonymized": ip,
+                "email": mask_email(existing_user.email)
+            }
+        )
 
             if existing_user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS: # type: ignore
                 existing_user.is_enabled = False
