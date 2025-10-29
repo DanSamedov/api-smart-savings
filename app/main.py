@@ -10,12 +10,13 @@ from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 
 from app.utils.response import standard_response
-from app.core.logging import log_requests, cleanup_old_logs
+from app.core.logging import LoggingMiddleware, cleanup_old_logs
 from app.api.dependencies import authenticate
 from app.core.rate_limiter import limiter
 from app.utils import handlers
 from app.api.routers import main_router
 from app.core.config import settings
+from app.db.init_db import init_test_accounts, delete_test_accounts
 
 
 # =======================================
@@ -24,13 +25,19 @@ from app.core.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup Events
+    print(f"[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
+    if settings.APP_ENV == "development":
+        init_test_accounts()
     cleanup_old_logs()
-
+    
     yield  # App Runs
 
     # Shutdown Events
 
 
+# =======================================
+# APP INSTANCE
+# =======================================
 app = FastAPI(
     title=f"{settings.APP_NAME} API",
     version="1.0.0",
@@ -46,10 +53,19 @@ app.state.limiter = limiter
 # =======================================
 # MIDDLEWARE
 # =======================================
-app.middleware("http")(log_requests)
+app.add_middleware(LoggingMiddleware)
+
+if settings.ALLOWED_ORIGINS:
+    if isinstance(settings.ALLOWED_ORIGINS, str):
+        allowed_origins = [origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",")]
+    else:
+        allowed_origins = [str(origin).strip() for origin in settings.ALLOWED_ORIGINS]
+else:
+    allowed_origins = ["http://localhost:3195"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[str(origin) for origin in settings.ALLOWED_ORIGINS] if settings.ALLOWED_ORIGINS is not None else ["http://localhost:3195"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=[

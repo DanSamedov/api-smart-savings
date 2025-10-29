@@ -22,7 +22,7 @@ DATABASE_URL = (
     f"postgresql://{POSTGRES_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
 )
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 
 @event.listens_for(engine, "connect")
