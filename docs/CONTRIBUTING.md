@@ -36,7 +36,8 @@ git pull origin main
 
 ```bash
 git checkout <your-branch>
-git rebase main
+git fetch origin main
+git rebase origin/main
 ```
 
 ## Commit Message Style
