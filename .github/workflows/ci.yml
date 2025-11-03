@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test-format-sort:
+  test-checks:
     runs-on: ubuntu-latest
 
     strategy:
@@ -41,15 +41,9 @@ jobs:
       - name: Run tests
         run: pytest -v
 
-      - name: Reformat code with black
-        run: |
-          black .
-          git diff --exit-code || (echo "(i) Code was reformatted by black. Please commit changes." && exit 1)
-
-      - name: Check code formatting
+      - name: Check code formatting with black
         run: black --check .
 
-      - name: Sort imports with isort
-        run: |
-          isort .
-          git diff --exit-code || (echo "(i) Imports were sorted by isort. Please commit changes." && exit 1)
+      - name: Check import sorting with isort
+        run: isort --check-only .
+
