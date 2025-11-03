@@ -94,7 +94,27 @@ test: added test for verify email endpoint
 - Run formatters/linters before commiting:
 
 ```bash
+# check formatting
+black --check .
+
+# fix formatting
 black .
+
+# check import sorting
+isort --check-only .
+
+# fix import sorting
+isort .
+```
+
+OR use the Make commands in `Makefile`:
+
+```bash
+# Build Docker containers
+make build
+
+# Run tests & code formatting
+make all
 ```
 
 ## Communication

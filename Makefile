@@ -1,5 +1,5 @@
 # Makefile for Alembic + Docker FastAPI
-.PHONY: build down downv makemigration migrate current downgrade tests-v tests-q
+.PHONY: build down downv makemigration migrate current downgrade test-v test-q check format all
 
 
 # Build image and run containers
@@ -31,9 +31,19 @@ downgrade:
 	docker compose exec api alembic downgrade -1
 
 # Run all tests (Verbose mode)
-tests-v:
+test-v:
 	docker compose exec api pytest -v
 
-# Run all tests (Quiet mode)
-tests-q:
-	docker compose exec api pytest -q
+# # Run all tests (Quiet mode)
+test-q:
+	docker compose exec api bash -c "pytest -q"
+
+check:
+	@echo "Skipping local format checks; handled in CI."
+
+# # Automatically fix formatting and sort imports
+format:
+	docker compose exec api bash -c "black . && isort ."
+
+# Shortcut to run everything: tests + check
+all: test-q check format
