@@ -1,23 +1,26 @@
 # app/services/auth_service.py
 
-from typing import Any
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 
-from app.core.logging import logger
-from app.models.user_model import User
-from app.core.security import hash_password, verify_password
 from app.core.config import settings
-from app.schemas.auth_schemas import RegisterRequest, LoginRequest, VerifyEmailRequest, EmailOnlyRequest, ResetPasswordRequest
-from app.core.jwt import create_access_token, decode_token, create_password_reset_token
-from app.core.security import generate_secure_code
-from app.services.email_service import EmailType, EmailService
+from app.core.jwt import (create_access_token, create_password_reset_token,
+                          decode_token)
+from app.core.logging import logger
+from app.core.security import (generate_secure_code, hash_password,
+                               verify_password)
+from app.models.user_model import User
+from app.schemas.auth_schemas import (EmailOnlyRequest, LoginRequest,
+                                      RegisterRequest, ResetPasswordRequest,
+                                      VerifyEmailRequest)
+from app.services.email_service import EmailService, EmailType
 from app.utils.helpers import hash_ip, mask_email
 
-class AuthService:
 
+class AuthService:
     @staticmethod
     async def register_new_user(
         register_request: RegisterRequest, db: Session, background_tasks=None
@@ -42,7 +45,8 @@ class AuthService:
         ).first()
         if existing_user:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists. Try logging in."
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email already exists. Try logging in.",
             )
 
         # Verification code to be sent yo user email to enable user's account
@@ -58,7 +62,7 @@ class AuthService:
             verification_code_expires_at=expires_at,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
-            is_deleted=False
+            is_deleted=False,
         )
         db.add(user)
         db.commit()
@@ -66,10 +70,18 @@ class AuthService:
 
         if background_tasks:
             background_tasks.add_task(
-                EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[user.email], code=verification_code)
+                EmailService.send_templated_email(
+                    email_type=EmailType.VERIFICATION,
+                    email_to=[user.email],
+                    code=verification_code,
+                )
             )
         else:
-            await EmailService.send_templated_email(email_type=EmailType.VERIFICATION, email_to=[user.email], code=verification_code)
+            await EmailService.send_templated_email(
+                email_type=EmailType.VERIFICATION,
+                email_to=[user.email],
+                code=verification_code,
+            )
 
     @staticmethod
     async def verify_user_email(
@@ -124,10 +136,14 @@ class AuthService:
 
         if background_tasks:
             background_tasks.add_task(
-                EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[existing_user.email])
+                EmailService.send_templated_email(
+                    email_type=EmailType.WELCOME, email_to=[existing_user.email]
+                )
             )
         else:
-            await EmailService.send_templated_email(email_type=EmailType.WELCOME, email_to=[existing_user.email])
+            await EmailService.send_templated_email(
+                email_type=EmailType.WELCOME, email_to=[existing_user.email]
+            )
 
     @staticmethod
     async def resend_verification_code(
@@ -179,13 +195,13 @@ class AuthService:
                 EmailService.send_templated_email,
                 email_type=EmailType.VERIFICATION,
                 email_to=[email],
-                code=verification_code
+                code=verification_code,
             )
         else:
             await EmailService.send_templated_email(
                 email_type=EmailType.VERIFICATION,
-                email_to=[email],
-                code=verification_code
+                email_to=[email.email],
+                code=verification_code,
             )
 
     @staticmethod
@@ -211,54 +227,50 @@ class AuthService:
             if token_data.get("type") != "password_reset":
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid reset token"
+                    detail="Invalid reset token",
                 )
-            
+
             stmt = select(User).where(User.email == token_data["sub"])
             user = db.exec(stmt).first()
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                 )
-            
+
             user.password_hash = hash_password(reset_request.new_password)
             user.failed_login_attempts = 0
             user.is_enabled = True
             user.updated_at = datetime.now(timezone.utc)
-            
+
             db.add(user)
             db.commit()
-            
+
             reset_time = user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
             if background_tasks:
                 background_tasks.add_task(
                     EmailService.send_templated_email,
                     email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
                     email_to=[user.email],
-                    reset_time=reset_time
+                    reset_time=reset_time,
                 )
             else:
                 await EmailService.send_templated_email(
                     email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
                     email_to=[user.email],
-                    reset_time=reset_time
+                    reset_time=reset_time,
                 )
-                
+
             logger.info(
-                "Password reset successful",
-                extra={
-                    "email": mask_email(user.email)
-                }
+                "Password reset successful", extra={"email": mask_email(user.email)}
             )
-            
+
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Password reset failed: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired reset token"
+                detail="Invalid or expired reset token",
             )
 
     @staticmethod
@@ -290,9 +302,7 @@ class AuthService:
             # but log the attempt for security monitoring
             logger.warning(
                 "Password reset requested for non-existent email",
-                extra={
-                    "email": mask_email(email)
-                }
+                extra={"email": mask_email(email)},
             )
             return
 
@@ -308,7 +318,7 @@ class AuthService:
         else:
             await EmailService.send_templated_email(
                 email_type=EmailType.PASSWORD_RESET,
-                email_to=[email],
+                email_to=[email.email],
                 reset_token=reset_token,
             )
 
@@ -346,7 +356,8 @@ class AuthService:
 
         if not existing_user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid login credentials."
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid login credentials.",
             )
 
         if not verify_password(login_request.password, existing_user.password_hash):
@@ -354,17 +365,17 @@ class AuthService:
             existing_user.last_failed_login_at = datetime.now(timezone.utc)
 
             logger.warning(
-            msg="Failed login attempt",
-            extra={
-                "method": "POST",
-                "path": "/v1/auth/login",
-                "status_code": 401,
-                "ip_anonymized": ip,
-                "email": mask_email(existing_user.email)
-            }
-        )
+                msg="Failed login attempt",
+                extra={
+                    "method": "POST",
+                    "path": "/v1/auth/login",
+                    "status_code": 401,
+                    "ip_anonymized": ip,
+                    "email": mask_email(existing_user.email),
+                },
+            )
 
-            if existing_user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS: # type: ignore
+            if existing_user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:  # type: ignore
                 existing_user.is_enabled = False
                 db.add(existing_user)
                 db.commit()
@@ -372,10 +383,16 @@ class AuthService:
                 # Send security email
                 if background_tasks:
                     background_tasks.add_task(
-                        EmailService.send_templated_email(email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email])
+                        EmailService.send_templated_email(
+                            email_type=EmailType.ACCOUNT_LOCKED,
+                            email_to=[existing_user.email],
+                        )
                     )
                 else:
-                    await EmailService.send_templated_email(email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email])
+                    await EmailService.send_templated_email(
+                        email_type=EmailType.ACCOUNT_LOCKED,
+                        email_to=[existing_user.email],
+                    )
 
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -394,10 +411,15 @@ class AuthService:
             # Send security email
             if background_tasks:
                 background_tasks.add_task(
-                    EmailService.send_templated_email(email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email])
+                    EmailService.send_templated_email(
+                        email_type=EmailType.ACCOUNT_LOCKED,
+                        email_to=[existing_user.email],
+                    )
                 )
             else:
-                await EmailService.send_templated_email(email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email])
+                await EmailService.send_templated_email(
+                    email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email]
+                )
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

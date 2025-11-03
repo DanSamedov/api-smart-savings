@@ -1,10 +1,10 @@
 # app/db/session.py
 import os
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
-from urllib.parse import quote_plus 
-from sqlmodel import create_engine, Session, text
 from sqlalchemy import event
+from sqlmodel import Session, create_engine, text
 
 load_dotenv()
 

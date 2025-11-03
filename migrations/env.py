@@ -1,21 +1,16 @@
+import os
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from sqlmodel import SQLModel
+from urllib.parse import quote_plus
 
 from alembic import context
-
-import os
-from urllib.parse import quote_plus 
+from sqlalchemy import engine_from_config, pool
+from sqlmodel import SQLModel
 
 from app.core.config import Settings
 # ================================
 # MODELS
 # ================================
 from app.models.user_model import User
-
-
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -30,7 +25,7 @@ if config.config_file_name is not None:
 
 def get_url():
     # URL encode the password to handle special characters
-    password = quote_plus(settings.POSTGRES_PASSWORD) # type: ignore
+    password = quote_plus(settings.POSTGRES_PASSWORD)  # type: ignore
     return f"postgresql://{settings.POSTGRES_USER}:{password}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.POSTGRES_DB}"
 
 
@@ -79,13 +74,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

@@ -1,10 +1,11 @@
-import pytest
 from datetime import datetime, timedelta, timezone
-from jose import jwt
-from fastapi import HTTPException
 
-from app.core.jwt import create_access_token, decode_token
+import pytest
+from fastapi import HTTPException
+from jose import jwt
+
 import app.core.jwt as jwt_module
+from app.core.jwt import create_access_token, decode_token
 
 
 @pytest.fixture(autouse=True)
@@ -34,20 +35,23 @@ def test_create_access_token_and_decode():
     [
         # Invalid signature
         (
-            lambda: jwt.encode({"sub": "user123"}, "wrongkey", algorithm=jwt_module.ALGORITHM)
+            lambda: jwt.encode(
+                {"sub": "user123"}, "wrongkey", algorithm=jwt_module.ALGORITHM
+            )
         ),
         # Expired token
         (
             lambda: jwt.encode(
-                {"sub": "user123", "exp": datetime.now(timezone.utc) - timedelta(seconds=10)},
+                {
+                    "sub": "user123",
+                    "exp": datetime.now(timezone.utc) - timedelta(seconds=10),
+                },
                 jwt_module.KEY,
                 algorithm=jwt_module.ALGORITHM,
             )
         ),
         # Malformed token
-        (
-            lambda: "header.payload"
-        ),
+        (lambda: "header.payload"),
     ],
 )
 def test_decode_token_failures(token_factory):

@@ -1,14 +1,15 @@
 # app/utils/helpers.py
 
-import secrets
-import string
 import hashlib
 import os
+import secrets
+import string
 
 SALT = os.getenv("IP_HASH_SALT")
 
+
 def generate_secure_code(length=6):
-    return ''.join(secrets.choice(string.digits) for _ in range(length))
+    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
 def hash_ip(ip: str) -> str:

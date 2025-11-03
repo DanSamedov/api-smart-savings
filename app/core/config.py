@@ -1,12 +1,12 @@
 # app/core/config.py
 
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
-from fastapi_mail import ConnectionConfig
 from fastapi.templating import Jinja2Templates
+from fastapi_mail import ConnectionConfig
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
 
 # Template loader
 templates = Jinja2Templates(
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     DOCS_USERNAME: Optional[str] = None
     DOCS_PASSWORD: Optional[str] = None
-    
+
     TEST_EMAIL_ACCOUNTS: Optional[str] = None
 
     ALLOWED_ORIGINS: Optional[str] = None
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: Optional[str] = None
     JWT_EXPIRATION_TIME: Optional[int] = None
     JWT_SIGNING_ALGORITHM: Optional[str] = None
-    
+
     MAX_FAILED_LOGIN_ATTEMPTS: Optional[int] = None
     IP_HASH_SALT: Optional[str] = None
     LOG_RETENTION_DAYS: Optional[int] = None
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
 
-    model_config = ConfigDict(env_file=".env") # type: ignore
+    model_config = ConfigDict(env_file=".env")  # type: ignore
 
 
 settings = Settings()
@@ -57,13 +57,13 @@ settings = Settings()
 
 def get_mail_config():
     mail_from = f"{settings.APP_NAME} <{settings.SMTP_USERNAME}>"
-    
+
     return ConnectionConfig(
-        MAIL_USERNAME=settings.SMTP_USERNAME, # type: ignore
-        MAIL_PASSWORD=settings.SMTP_PASSWORD, # type: ignore
-        MAIL_FROM=mail_from, # type: ignore
-        MAIL_PORT=settings.SMTP_PORT, # type: ignore
-        MAIL_SERVER=settings.SMTP_HOST, # type: ignore
+        MAIL_USERNAME=settings.SMTP_USERNAME,  # type: ignore
+        MAIL_PASSWORD=settings.SMTP_PASSWORD,  # type: ignore
+        MAIL_FROM=mail_from,  # type: ignore
+        MAIL_PORT=settings.SMTP_PORT,  # type: ignore
+        MAIL_SERVER=settings.SMTP_HOST,  # type: ignore
         MAIL_STARTTLS=True,
         MAIL_SSL_TLS=False,
         USE_CREDENTIALS=True,

@@ -2,13 +2,14 @@
 
 import secrets
 import string
-from passlib.context import CryptContext
 
+from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def generate_secure_code(length=6):
-    return ''.join(secrets.choice(string.digits) for _ in range(length))
+    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
 def hash_password(password: str) -> str:

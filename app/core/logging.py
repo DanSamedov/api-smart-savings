@@ -1,10 +1,10 @@
 # app/core/logging.py
 
+import datetime
+import json
 import logging
 import sys
 import time
-import datetime
-import json
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -31,6 +31,7 @@ cleanup_logger = logging.getLogger("activity_log")
 cleanup_logger.setLevel(logging.INFO)
 cleanup_logger.propagate = False
 
+
 # ---------------------------
 # JSON formatters
 # ---------------------------
@@ -48,14 +49,16 @@ class JsonFormatter(logging.Formatter):
         }
         return json.dumps(log_entry)
 
+
 class CleanupJsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord):
         log_entry = {
             "datetime": self.formatTime(record),
             "event": getattr(record, "event", "log_cleanup"),
-            "message": record.getMessage()
+            "message": record.getMessage(),
         }
         return json.dumps(log_entry)
+
 
 # ---------------------------
 # Remove existing handlers
@@ -92,6 +95,7 @@ if ENV != "production":
     cleanup_file_handler.setFormatter(CleanupJsonFormatter())
     cleanup_logger.addHandler(cleanup_file_handler)
 
+
 # ---------------------------
 # Helper: descriptive messages
 # ---------------------------
@@ -118,6 +122,7 @@ def get_request_log_message(status_code: int) -> str:
     else:
         return "Request processed"
 
+
 # ---------------------------
 # Request logging middleware
 # ---------------------------
@@ -132,6 +137,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             # Handle rate-limited requests separately
             from slowapi.errors import RateLimitExceeded
+
             process_time = (time.time() - start_time) * 1000
 
             if isinstance(exc, RateLimitExceeded):
@@ -166,14 +172,15 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
 # ---------------------------
 # Log cleanup functions
 # ---------------------------
 def log_logs_cleanup(message: str = None):
     cleanup_logger.info(
-        message or "Log cleanup executed",
-        extra={"event": "log_cleanup"}
+        message or "Log cleanup executed", extra={"event": "log_cleanup"}
     )
+
 
 def cleanup_old_logs():
     """Delete old logs based on retention days."""
@@ -211,7 +218,11 @@ def cleanup_old_logs():
                 if first_valid_index > 0:
                     with open(log_file, "w") as f:
                         f.writelines(lines[first_valid_index:])
-                    log_logs_cleanup(f"Deleted {first_valid_index} old log entries from {log_file.name}")
+                    log_logs_cleanup(
+                        f"Deleted {first_valid_index} old log entries from {log_file.name}"
+                    )
 
             except Exception as e:
-                cleanup_logger.error(f"Error during log cleanup for {log_file.name}: {e}")
+                cleanup_logger.error(
+                    f"Error during log cleanup for {log_file.name}: {e}"
+                )

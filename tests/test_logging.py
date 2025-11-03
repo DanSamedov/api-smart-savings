@@ -1,20 +1,17 @@
-import pytest
+import asyncio
+import datetime
 import json
 import logging
-import datetime
-import asyncio
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from fastapi import Request, Response
 from slowapi.errors import RateLimitExceeded
 from slowapi.wrappers import Limit
 
-from app.core.logging import (
-    JsonFormatter,
-    CleanupJsonFormatter,
-    LoggingMiddleware,
-    get_request_log_message,
-    cleanup_old_logs,
-)
+from app.core.logging import (CleanupJsonFormatter, JsonFormatter,
+                              LoggingMiddleware, cleanup_old_logs,
+                              get_request_log_message)
 
 
 # ---------------------------
@@ -24,8 +21,13 @@ class TestJsonFormatter:
     def test_format_with_all_fields(self):
         formatter = JsonFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="", lineno=0,
-            msg="Test message", args=(), exc_info=None
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Test message",
+            args=(),
+            exc_info=None,
         )
         record.method = "GET"
         record.path = "/api/test"
@@ -48,8 +50,13 @@ class TestJsonFormatter:
     def test_format_with_missing_fields(self):
         formatter = JsonFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.ERROR, pathname="", lineno=0,
-            msg="Error message", args=(), exc_info=None
+            name="test",
+            level=logging.ERROR,
+            pathname="",
+            lineno=0,
+            msg="Error message",
+            args=(),
+            exc_info=None,
         )
         result = formatter.format(record)
         log_entry = json.loads(result)
@@ -63,8 +70,13 @@ class TestCleanupJsonFormatter:
     def test_format_cleanup_log(self):
         formatter = CleanupJsonFormatter()
         record = logging.LogRecord(
-            name="activity_log", level=logging.INFO, pathname="", lineno=0,
-            msg="Deleted old entries", args=(), exc_info=None
+            name="activity_log",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Deleted old entries",
+            args=(),
+            exc_info=None,
         )
         record.event = "log_cleanup"
 
@@ -92,9 +104,9 @@ class TestLoggingMiddleware:
         async def mock_call_next(req):
             return mock_response
 
-        with patch("app.core.logging.logger") as mock_logger, \
-             patch("app.core.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"):
-
+        with patch("app.core.logging.logger") as mock_logger, patch(
+            "app.core.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"
+        ):
             mw = LoggingMiddleware(app=None)
             response = await mw.dispatch(mock_request, mock_call_next)
 
@@ -102,7 +114,9 @@ class TestLoggingMiddleware:
             mock_logger.info.assert_called_once()
             call_args = mock_logger.info.call_args
             assert call_args[1]["extra"]["status_code"] == 200
-            assert call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+            assert (
+                call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+            )
 
     @pytest.mark.asyncio
     async def test_middleware_logs_rate_limited_request(self):
@@ -117,9 +131,9 @@ class TestLoggingMiddleware:
         async def mock_call_next(req):
             raise RateLimitExceeded(dummy_limit)
 
-        with patch("app.core.logging.logger") as mock_logger, \
-            patch("app.core.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"):
-
+        with patch("app.core.logging.logger") as mock_logger, patch(
+            "app.core.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"
+        ):
             mw = LoggingMiddleware(app=None)
 
             with pytest.raises(RateLimitExceeded):
@@ -128,21 +142,28 @@ class TestLoggingMiddleware:
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
             assert call_args[1]["extra"]["status_code"] == 429
-            assert call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+            assert (
+                call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+            )
+
+
 # ---------------------------
 # get_request_log_message tests
 # ---------------------------
 class TestGetRequestLogMessage:
-    @pytest.mark.parametrize("status,expected", [
-        (200, "Request successful"),
-        (201, "Resource created"),
-        (204, "No content returned"),
-        (401, "Request unauthorized"),
-        (403, "Request forbidden"),
-        (404, "Request returned client error"),
-        (429, "Request rate-limited"),
-        (500, "Request returned server error")
-    ])
+    @pytest.mark.parametrize(
+        "status,expected",
+        [
+            (200, "Request successful"),
+            (201, "Resource created"),
+            (204, "No content returned"),
+            (401, "Request unauthorized"),
+            (403, "Request forbidden"),
+            (404, "Request returned client error"),
+            (429, "Request rate-limited"),
+            (500, "Request returned server error"),
+        ],
+    )
     def test_get_request_log_message(self, status, expected):
         assert get_request_log_message(status) == expected
 
@@ -164,11 +185,19 @@ class TestCleanupOldLogs:
         log_dir.mkdir()
         log_file = log_dir / "savings-api-v1.log"
 
-        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S,%f")
-        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S,%f")
+        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime(
+            "%Y-%m-%d %H:%M:%S,%f"
+        )
+        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime(
+            "%Y-%m-%d %H:%M:%S,%f"
+        )
 
-        old_entry = json.dumps({"datetime": old_time, "level": "INFO", "message": "Old log"})
-        recent_entry = json.dumps({"datetime": recent_time, "level": "INFO", "message": "Recent log"})
+        old_entry = json.dumps(
+            {"datetime": old_time, "level": "INFO", "message": "Old log"}
+        )
+        recent_entry = json.dumps(
+            {"datetime": recent_time, "level": "INFO", "message": "Recent log"}
+        )
 
         with open(log_file, "w") as f:
             f.write(old_entry + "\n")

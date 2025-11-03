@@ -45,10 +45,10 @@ class EmailOnlyRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     """Schema for password reset requests with token and new password validation."""
-    
+
     reset_token: str
     new_password: str
-    
+
     @field_validator("new_password")
     @classmethod
     def validate_password(cls, v: str) -> str:

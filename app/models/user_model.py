@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, func
-from sqlmodel import SQLModel, Field, Boolean
 from pydantic import EmailStr
+from sqlalchemy import Column, DateTime, func
+from sqlmodel import Boolean, Field, SQLModel
 
 
 class Role(StrEnum):

@@ -1,13 +1,13 @@
 # app/services/email_service.py
 
 from enum import StrEnum
+
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from jinja2 import Template
 
+from app.core.config import TEMPLATES_DIR, get_mail_config
 from app.core.logging import logger
 from app.utils.helpers import mask_email
-from app.core.config import TEMPLATES_DIR, get_mail_config
-
 
 mail_config = get_mail_config()
 fm = FastMail(mail_config)
@@ -15,6 +15,7 @@ fm = FastMail(mail_config)
 
 class EmailType(StrEnum):
     """Enum for valid email types"""
+
     VERIFICATION = "verification"
     WELCOME = "welcome"
     PASSWORD_RESET = "password_reset"
@@ -26,7 +27,12 @@ class EmailType(StrEnum):
 
 class EmailService:
     @staticmethod
-    async def _send_email(email_to: list[str], subject_template: str, template_rel_path: str, context: dict = None):
+    async def _send_email(
+        email_to: list[str],
+        subject_template: str,
+        template_rel_path: str,
+        context: dict = None,
+    ):
         """
         Internal helper to render and send HTML emails with templated subjects.
         :param email_to: Recipient email
@@ -59,15 +65,20 @@ class EmailService:
             )
 
     @staticmethod
-    async def send_templated_email(email_type: EmailType, email_to: list[str], code: str = None, reset_token: str = None, reset_time: str = None, verification_code: str = None):
-
+    async def send_templated_email(
+        email_type: EmailType,
+        email_to: list[str],
+        code: str = None,
+        reset_token: str = None,
+        reset_time: str = None,
+        verification_code: str = None,
+    ):
         try:
             email_type = EmailType(email_type)  # ensures it's a valid enum instance
         except ValueError:
             logger.exception(f"Invalid email type '{email_type}'")
             return  # or raise an exception
 
-        
         if email_type == EmailType.VERIFICATION and code:
             await EmailService._send_email(
                 email_to=email_to,

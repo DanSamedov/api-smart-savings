@@ -1,16 +1,15 @@
 # app/api/dependencies.py
 import secrets
 
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import (HTTPBasic, HTTPBasicCredentials,
+                              OAuth2PasswordBearer)
 from sqlmodel import Session, select
 
 from app.core.config import settings
+from app.core.jwt import decode_token
 from app.db.session import get_session
 from app.models.user_model import User
-from app.core.jwt import decode_token
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -58,7 +57,8 @@ def get_current_user(
     user = session.exec(stmt).one_or_none()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="No account found with this email address"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No account found with this email address",
         )
 
     if user.is_deleted:
