@@ -104,5 +104,5 @@ async def request_user_data_gdpr(request: Request, background_tasks: BackgroundT
     
     return standard_response(
         status="success",
-        message="Your GDPR data request has been received and is now being processed. You’ll receive your data within 24 hours."
+        message="Your GDPR data request has been received and is now being processed. You’ll receive your it via email within 24 hours."
     )
