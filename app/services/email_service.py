@@ -5,12 +5,14 @@ from enum import StrEnum
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from jinja2 import Template
 
-from app.core.config import TEMPLATES_DIR, get_mail_config
+from app.core.config import TEMPLATES_DIR, get_mail_config, settings
 from app.core.logging import logger
 from app.utils.helpers import mask_email
 
 mail_config = get_mail_config()
 fm = FastMail(mail_config)
+
+app_name = settings.APP_NAME
 
 
 class EmailType(StrEnum):
@@ -20,11 +22,12 @@ class EmailType(StrEnum):
     WELCOME = "welcome"
     VERIFICATION = "verification"
     PASSWORD_RESET = "password_reset"
+    LOGIN_NOTIFICATION = "login_notification"
     # Account
     ACCOUNT_DELETION_REQUEST = "account_deletion_request"
     ACCOUNT_DELETION_SCHEDULED = "account_deletion_scheduled"
     ACCOUNT_LOCKED = "account_locked"
-    # Notification
+    ACCOUNT_DISABLED = "account_disabled"
     PASSWORD_RESET_NOTIFICATION = "password_reset_notification"
     PASSWORD_CHANGE_NOTIFICATION = "password_change_notification"
 
@@ -73,8 +76,10 @@ class EmailService:
         email_type: EmailType,
         email_to: list[str],
         reset_token: str = None,
-        reset_time: str = None,
+        time: str = None,
         verification_code: str = None,
+        ip: str = None,
+        location: str = None
     ):
         try:
             email_type = EmailType(email_type)  # ensures it's a valid enum instance
@@ -85,54 +90,76 @@ class EmailService:
         if email_type == EmailType.VERIFICATION and verification_code:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template=f"{ verification_code } is your verification code",
+                subject_template=f"[{app_name}] { verification_code } is your code",
                 template_rel_path="auth/email-verification.html",
                 context={"verification_code": verification_code},
             )
         elif email_type == EmailType.WELCOME:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="Welcome to SmartSave",
-                template_rel_path="account/user-registration.html",
+                subject_template=f"[{app_name}] Welcome aboard!",
+                template_rel_path="account/welcome.html",
+            )
+        elif email_type == EmailType.LOGIN_NOTIFICATION:
+            await EmailService._send_email(
+                email_to=email_to,
+                subject_template=f"[{app_name}] Login detected",
+                template_rel_path="account/notify-login.html",
+                context={
+                    "ip": ip,
+                    "time": time,
+                    "location": location
+                    },
             )
         elif email_type == EmailType.PASSWORD_RESET and reset_token:
             frontend_url = "---"
             reset_link = f"{frontend_url}/u/reset-password?token={reset_token}"
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="You requested a Password Reset",
+                subject_template=f"[{app_name}] You requested a Password Reset",
                 template_rel_path="auth/password-reset.html",
                 context={"reset_link": reset_link},
             )
-        elif email_type == EmailType.PASSWORD_RESET_NOTIFICATION and reset_time:
+        elif email_type == EmailType.PASSWORD_RESET_NOTIFICATION and time:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="You changed your Password",
+                subject_template=f"[{app_name}] Account Password Modified",
                 template_rel_path="auth/notify-password-reset.html",
-                context={"reset_time": reset_time},
+                context={"reset_time": time},
             )
         elif email_type == EmailType.PASSWORD_CHANGE_NOTIFICATION:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="You changed your Password",
+                subject_template=f"[{app_name}] Account Password Modified",
                 template_rel_path="account/notify-password-change.html"
             )
         elif email_type == EmailType.ACCOUNT_DELETION_REQUEST and verification_code:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template=f"{ verification_code } is your verification code",
+                subject_template=f"[{app_name}] { verification_code } is your code",
                 template_rel_path="account/account-deletion.html",
                 context={"verification_code": verification_code},
             )
         elif email_type == EmailType.ACCOUNT_DELETION_SCHEDULED:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="Account Scheduled for Deletion",
-                template_rel_path="account/scheduled-account-deletion.html",
+                subject_template=f"[{app_name}] Account Scheduled for Deletion",
+                template_rel_path="account/notify-scheduled-deletion.html",
             )
         elif email_type == EmailType.ACCOUNT_LOCKED:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="Your account has been locked",
+                subject_template=f"[{app_name}][Action Required] Account Locked",
                 template_rel_path="account/account-locked.html",
+                context={
+                    "ip": ip,
+                    "time": time,
+                    "location": location
+                },
+            )
+        elif email_type == EmailType.ACCOUNT_DISABLED:
+            await EmailService._send_email(
+                email_to=email_to,
+                subject_template=f"[{app_name}][Action Required] Account Disabled",
+                template_rel_path="account/account-disabled.html"
             )
