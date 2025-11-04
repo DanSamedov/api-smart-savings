@@ -1,4 +1,5 @@
 # app/api/dependencies.py
+
 import secrets
 
 from fastapi import Depends, HTTPException, status
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.core.jwt import decode_token
 from app.db.session import get_session
 from app.models.user_model import User
+from app.utils.db_helpers import get_user_by_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -53,8 +55,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials.",
         )
-    stmt = select(User).where(User.email == user_email)
-    user = session.exec(stmt).one_or_none()
+    user = get_user_by_email(email=user_email, db=session)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

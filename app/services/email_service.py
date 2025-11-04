@@ -120,7 +120,7 @@ class EmailService:
         elif email_type == EmailType.ACCOUNT_DELETION_REQUEST and verification_code:
             await EmailService._send_email(
                 email_to=email_to,
-                subject_template="Account Deletion Confirmation",
+                subject_template=f"{ verification_code } is your verification code",
                 template_rel_path="account/account-deletion.html",
                 context={"verification_code": verification_code},
             )
