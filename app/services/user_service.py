@@ -16,6 +16,7 @@ from app.core.security import hash_password, verify_password, generate_secure_co
 from app.utils.helpers import hash_ip, get_client_ip
 from app.utils.db_helpers import get_user_by_email
 
+
 class UserService:
     @staticmethod
     async def get_user_details(current_user: User) -> dict[str, Any]:
@@ -38,7 +39,8 @@ class UserService:
             "full_name": current_user.full_name,
             "initial": user_initial,
             "role": current_user.role,
-            "is_verified": current_user.is_verified
+            "is_verified": current_user.is_verified,
+            "preferred_language": current_user.language_preference
         }
 
         return data
