@@ -3,10 +3,11 @@
 from typing import Any
 from datetime import datetime, timezone, timedelta
 
-from fastapi import HTTPException, status, Request
-from sqlmodel import Session, select
+from fastapi import Request
+from sqlmodel import Session
 
 from app.core.logging import logger
+from app.utils.exceptions import CustomException
 from app.models.user_model import User
 from app.schemas.user_schemas import UserUpdate, ChangePasswordRequest
 from app.schemas.auth_schemas import VerificationCodeOnlyRequest
@@ -14,7 +15,6 @@ from app.services.email_service import EmailService, EmailType
 from app.core.security import hash_password, verify_password, generate_secure_code
 from app.utils.helpers import hash_ip, get_client_ip
 from app.utils.db_helpers import get_user_by_email
-
 
 class UserService:
     @staticmethod
@@ -92,10 +92,7 @@ class UserService:
         new_pass = hash_password(change_password_request.new_password)
         
         if not verify_password(plain_password=current_pass, hashed_password=existing_user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid current password."
-            )
+            CustomException._403_forbidden("Invalid current password.")
         
         existing_user.password_hash = new_pass
         db.commit()
@@ -190,10 +187,7 @@ class UserService:
             )
 
         if current_user.is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Account is already scheduled for deletion."
-            )
+            CustomException._409_conflict("Account is already scheduled for deletion.")
         
         ver_code = deletion_request.verification_code
         
@@ -207,10 +201,7 @@ class UserService:
             or not current_user.verification_code_expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired verification code.",
-            )    
+            CustomException._400_bad_request("Invalid or expired verification code.")
 
         current_user.is_deleted = True
         current_user.deleted_at = datetime.now(timezone.utc)

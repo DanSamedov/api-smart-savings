@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 
 from app.core.config import settings
+from app.utils.exceptions import CustomException
 
 ALGORITHM = settings.JWT_SIGNING_ALGORITHM
 KEY = settings.JWT_SECRET_KEY
@@ -34,11 +35,7 @@ def decode_token(token: str, expected_version: int = None) -> dict[str, Any]:
         if expected_version is not None:
             token_version = payload.get('ver')
             if token_version is None or token_version != expected_version:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token version mismatch"
-                )
-                
+                CustomException._401_unauthorized("Token version mismatch.")
         return payload
     except JWTError as e:
         raise HTTPException(
