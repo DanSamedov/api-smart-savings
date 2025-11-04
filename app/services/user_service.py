@@ -13,6 +13,7 @@ from app.schemas.auth_schemas import VerificationCodeOnlyRequest
 from app.services.email_service import EmailService, EmailType
 from app.core.security import hash_password, verify_password, generate_secure_code
 from app.utils.helpers import hash_ip
+from app.utils.db_helpers import get_user_by_email
 
 
 class UserService:
@@ -59,15 +60,13 @@ class UserService:
             return {"message": "No changes provided."}
         
         # Fetch the user (exists by JWT, so no need to validate existence)
-        stmt = select(User).where(User.email == current_user.email)
-        existing_user = db.exec(stmt).one()
+        existing_user = get_user_by_email(email=current_user.email, db=db)
         
         # Update only fields that were provided
         for field, value in update_data.items():
             setattr(existing_user, field, value)
-        db.add(existing_user)
+            
         db.commit()
-        db.refresh(existing_user)
         
         return {
             "message": "User details updated successfully."
@@ -86,8 +85,7 @@ class UserService:
             HTTPException: 403 Forbidden if the provided current_password is invalid.
         """
         # Fetch the user
-        stmt = select(User).where(User.email == current_user.email)
-        existing_user = db.exec(stmt).one()
+        existing_user = get_user_by_email(email=current_user.email, db=db)
         user_email = existing_user.email
 
         current_pass = change_password_request.current_password
@@ -100,8 +98,6 @@ class UserService:
             )
         
         existing_user.password_hash = new_pass
-        
-        db.add(existing_user)
         db.commit()
         
         if background_tasks:
@@ -220,7 +216,6 @@ class UserService:
         current_user.verification_code = None
         current_user.verification_code_expires_at = None
         
-        db.add(current_user)
         db.commit()
         
         if background_tasks:
@@ -243,8 +238,7 @@ class UserService:
     async def request_data_gdpr(request: Request, current_user: User, db: Session, background_tasks=None) -> None:
         ip = hash_ip(request.client.host)  # type: ignore
 
-        stmt = select(User).where(User.email == current_user.email)
-        existing_user = db.exec(stmt).one_or_none()
+        existing_user = get_user_by_email(email=current_user.email, db=db)
         
         logger.info(
             msg="GDPR Data Request",

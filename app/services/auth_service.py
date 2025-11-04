@@ -18,6 +18,7 @@ from app.schemas.auth_schemas import (EmailOnlyRequest, LoginRequest,
                                       VerifyEmailRequest)
 from app.services.email_service import EmailService, EmailType
 from app.utils.helpers import hash_ip, mask_email
+from app.utils.db_helpers import get_user_by_email
 
 
 class AuthService:
@@ -40,9 +41,8 @@ class AuthService:
             HTTPException: 409 Conflict if a user with the given email already exists.
         """
         # Check if user already exists
-        existing_user = db.exec(
-            select(User).where(User.email == register_request.email)
-        ).first()
+        existing_user = get_user_by_email(email=register_request.email, db=db)
+        
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -103,8 +103,7 @@ class AuthService:
             HTTPException: 409 Conflict if the account is already verified.
             HTTPException: 400 Bad Request if the verification code is invalid or expired.
         """
-        stmt = select(User).where(User.email == verify_email_request.email)
-        existing_user = db.exec(stmt).one_or_none()
+        existing_user = get_user_by_email(email=verify_email_request.email, db=db)
 
         if not existing_user:
             raise HTTPException(
@@ -131,7 +130,6 @@ class AuthService:
         existing_user.is_verified = True
         existing_user.verification_code = None
         existing_user.verification_code_expires_at = None
-        db.add(existing_user)
         db.commit()
 
         if background_tasks:
@@ -147,7 +145,7 @@ class AuthService:
 
     @staticmethod
     async def resend_verification_code(
-        email: EmailOnlyRequest,
+        email_only_req: EmailOnlyRequest,
         db: Session,
         background_tasks=None,
     ) -> None:
@@ -167,8 +165,7 @@ class AuthService:
             HTTPException: 404 Not Found if the user account does not exist.
             HTTPException: 409 Conflict if the account is already verified.
         """
-        stmt = select(User).where(User.email == email)
-        existing_user = db.exec(stmt).one_or_none()
+        existing_user = get_user_by_email(email=email_only_req.email, db=db)
 
         if not existing_user:
             raise HTTPException(
@@ -187,21 +184,20 @@ class AuthService:
 
         existing_user.verification_code = verification_code
         existing_user.verification_code_expires_at = expires_at
-        db.add(existing_user)
         db.commit()
 
         if background_tasks:
             background_tasks.add_task(
                 EmailService.send_templated_email,
                 email_type=EmailType.VERIFICATION,
-                email_to=[email],
-                code=verification_code,
+                email_to=[existing_user.email],
+                verification_code=verification_code,
             )
         else:
             await EmailService.send_templated_email(
                 email_type=EmailType.VERIFICATION,
-                email_to=[email.email],
-                code=verification_code,
+                email_to=[existing_user.email],
+                verification_code=verification_code,
             )
 
     @staticmethod
@@ -230,38 +226,36 @@ class AuthService:
                     detail="Invalid reset token.",
                 )
 
-            stmt = select(User).where(User.email == token_data["sub"])
-            user = db.exec(stmt).first()
-            if not user:
+            existing_user = get_user_by_email(email=token_data["sub"], db=db)
+            if not existing_user:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
                 )
 
-            user.password_hash = hash_password(reset_request.new_password)
-            user.failed_login_attempts = 0
-            user.is_enabled = True
-            user.updated_at = datetime.now(timezone.utc)
+            existing_user.password_hash = hash_password(reset_request.new_password)
+            existing_user.failed_login_attempts = 0
+            existing_user.is_enabled = True
+            existing_user.updated_at = datetime.now(timezone.utc)
 
-            db.add(user)
             db.commit()
 
-            reset_time = user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+            reset_time = existing_user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
             if background_tasks:
                 background_tasks.add_task(
                     EmailService.send_templated_email,
                     email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
-                    email_to=[user.email],
+                    email_to=[existing_user.email],
                     reset_time=reset_time,
                 )
             else:
                 await EmailService.send_templated_email(
                     email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
-                    email_to=[user.email],
+                    email_to=[existing_user.email],
                     reset_time=reset_time,
                 )
 
             logger.info(
-                "Password reset successful", extra={"email": mask_email(user.email)}
+                "Password reset successful", extra={"email": mask_email(existing_user.email)}
             )
 
         except HTTPException:
@@ -275,7 +269,7 @@ class AuthService:
 
     @staticmethod
     async def request_password_reset(
-        email: EmailOnlyRequest,
+        email_only_req: EmailOnlyRequest,
         db: Session,
         background_tasks=None,
     ) -> None:
@@ -287,38 +281,38 @@ class AuthService:
         The reset link will be valid for 15 minutes.
 
         Args:
-            email (str): Email address of the user requesting password reset.
+            email_only_req (EmailOnlyRequest): Email address of the user requesting password reset.
             db (Session): SQLModel session for database operations.
             background_tasks: Optional background tasks runner for async email sending.
 
         Raises:
             HTTPException: 404 Not Found if the user account does not exist.
         """
-        stmt = select(User).where(User.email == email)
-        existing_user = db.exec(stmt).one_or_none()
+        user_email = email_only_req.email
+        existing_user = get_user_by_email(email=user_email, db=db)
 
         if not existing_user:
             # We return success to avoid email enumeration
             # but log the attempt for security monitoring
             logger.warning(
                 "Password reset requested for non-existent email",
-                extra={"email": mask_email(email)},
+                extra={"email": mask_email(user_email)},
             )
             return
 
-        reset_token = create_password_reset_token(email)
+        reset_token = create_password_reset_token(user_email)
 
         if background_tasks:
             background_tasks.add_task(
                 EmailService.send_templated_email,
                 email_type=EmailType.PASSWORD_RESET,
-                email_to=[email],
+                email_to=[user_email],
                 reset_token=reset_token,
             )
         else:
             await EmailService.send_templated_email(
                 email_type=EmailType.PASSWORD_RESET,
-                email_to=[email.email],
+                email_to=[user_email],
                 reset_token=reset_token,
             )
 
@@ -351,9 +345,8 @@ class AuthService:
         """
         ip = hash_ip(request.client.host)  # type: ignore
 
-        stmt = select(User).where(User.email == login_request.email)
-        existing_user = db.exec(stmt).one_or_none()
-
+        existing_user = get_user_by_email(email=login_request.email, db=db)
+        
         if not existing_user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -377,7 +370,6 @@ class AuthService:
 
             if existing_user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:  # type: ignore
                 existing_user.is_enabled = False
-                db.add(existing_user)
                 db.commit()
 
                 # Send security email
@@ -399,7 +391,6 @@ class AuthService:
                     detail="Your account is temporarily locked due to multiple failed attempts. Check your email.",
                 )
 
-            db.add(existing_user)
             db.commit()
 
             raise HTTPException(
@@ -447,7 +438,6 @@ class AuthService:
         # Reset failed attempts on success
         existing_user.failed_login_attempts = 0
 
-        db.add(existing_user)
         db.commit()
 
         return {
