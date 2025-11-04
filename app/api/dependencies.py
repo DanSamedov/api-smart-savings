@@ -62,6 +62,12 @@ def get_current_user(
             detail="No account found with this email.",
         )
 
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is not verified.",
+        )
+
     if user.is_deleted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
