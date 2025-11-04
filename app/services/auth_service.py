@@ -2,9 +2,10 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import asyncio
 
 from fastapi import HTTPException, Request, status
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.jwt import (create_access_token, create_password_reset_token,
@@ -17,8 +18,9 @@ from app.schemas.auth_schemas import (EmailOnlyRequest, LoginRequest,
                                       RegisterRequest, ResetPasswordRequest,
                                       VerifyEmailRequest)
 from app.services.email_service import EmailService, EmailType
-from app.utils.helpers import hash_ip, mask_email
+from app.utils.helpers import hash_ip, mask_email, transform_time, get_location_from_ip
 from app.utils.db_helpers import get_user_by_email
+from app.services.email_sender_service import EmailSenderService
 
 
 class AuthService:
@@ -233,13 +235,16 @@ class AuthService:
                 )
 
             existing_user.password_hash = hash_password(reset_request.new_password)
+            if existing_user.last_failed_login_at is not None:
+                existing_user.is_enabled = True
             existing_user.failed_login_attempts = 0
-            existing_user.is_enabled = True
             existing_user.updated_at = datetime.now(timezone.utc)
 
             db.commit()
+            db.refresh(existing_user)
 
-            reset_time = existing_user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+            reset_time = transform_time(existing_user.updated_at)
+            
             if background_tasks:
                 background_tasks.add_task(
                     EmailService.send_templated_email,
@@ -251,7 +256,7 @@ class AuthService:
                 await EmailService.send_templated_email(
                     email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
                     email_to=[existing_user.email],
-                    reset_time=reset_time,
+                    time=reset_time,
                 )
 
             logger.info(
@@ -343,7 +348,8 @@ class AuthService:
             HTTPException: 403 Forbidden if the user account is not verified.
             HTTPException: 403 Forbidden after several invalid login attempts.
         """
-        ip = hash_ip(request.client.host)  # type: ignore
+        raw_ip = request.client.host # type: ignore
+        hashed_ip = hash_ip(raw_ip)
 
         existing_user = get_user_by_email(email=login_request.email, db=db)
         
@@ -363,7 +369,7 @@ class AuthService:
                     "method": "POST",
                     "path": "/v1/auth/login",
                     "status_code": 401,
-                    "ip_anonymized": ip,
+                    "ip_anonymized": hashed_ip,
                     "email": mask_email(existing_user.email),
                 },
             )
@@ -371,24 +377,30 @@ class AuthService:
             if existing_user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:  # type: ignore
                 existing_user.is_enabled = False
                 db.commit()
-
-                # Send security email
+                db.refresh(existing_user)
+                
+                login_failed_at = transform_time(existing_user.last_failed_login_at)
+                
+                # Send security email (Locked)
                 if background_tasks:
-                    background_tasks.add_task(
-                        EmailService.send_templated_email(
-                            email_type=EmailType.ACCOUNT_LOCKED,
-                            email_to=[existing_user.email],
-                        )
+                 background_tasks.add_task(
+                    asyncio.run,
+                    EmailSenderService.send_account_locked_email(
+                        email_to=existing_user.email,
+                        ip=raw_ip,
+                        time=login_failed_at,
                     )
+                )
                 else:
-                    await EmailService.send_templated_email(
-                        email_type=EmailType.ACCOUNT_LOCKED,
-                        email_to=[existing_user.email],
+                    await EmailSenderService.send_account_locked_email(
+                        email_to=existing_user.email,
+                        ip=raw_ip,
+                        time=login_failed_at
                     )
 
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Your account is temporarily locked due to multiple failed attempts. Check your email.",
+                    detail="Your account is temporarily locked due to failed login attempts. Check your email.",
                 )
 
             db.commit()
@@ -398,23 +410,23 @@ class AuthService:
                 detail="Invalid login credentials.",
             )
 
-        if not existing_user.is_enabled:
-            # Send security email
+        if not existing_user.is_enabled and existing_user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS and existing_user.last_failed_login_at is None: # type: ignore
+            # Send security email (Disabled)
             if background_tasks:
                 background_tasks.add_task(
-                    EmailService.send_templated_email(
-                        email_type=EmailType.ACCOUNT_LOCKED,
-                        email_to=[existing_user.email],
+                    asyncio.run,
+                    EmailSenderService.send_account_disabled_email(
+                        email_to=existing_user.email
                     )
                 )
             else:
-                await EmailService.send_templated_email(
-                    email_type=EmailType.ACCOUNT_LOCKED, email_to=[existing_user.email]
+                await EmailSenderService.send_account_disabled_email(
+                    email_to=existing_user.email
                 )
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account is locked, kindly check your email.",
+                detail="Your account is disabled, kindly check your email.",
             )
 
         if not existing_user.is_verified:
@@ -437,8 +449,28 @@ class AuthService:
 
         # Reset failed attempts on success
         existing_user.failed_login_attempts = 0
+        existing_user.last_failed_login_at = None
 
         db.commit()
+        db.refresh(existing_user)
+        
+        login_at = transform_time(existing_user.last_login_at)
+        
+        if background_tasks:
+            background_tasks.add_task(
+                asyncio.run,
+                EmailSenderService.send_login_notification_email(
+                    email_to=existing_user.email,
+                    ip=raw_ip,
+                    time=login_at,
+                )
+            )
+        else:
+            await EmailSenderService.send_login_notification_email(
+                email_to=existing_user.email,
+                ip=raw_ip,
+                time=login_at,
+            )
 
         return {
             "token": access_token,
