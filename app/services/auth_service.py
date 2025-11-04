@@ -18,7 +18,7 @@ from app.schemas.auth_schemas import (EmailOnlyRequest, LoginRequest,
                                       RegisterRequest, ResetPasswordRequest,
                                       VerifyEmailRequest)
 from app.services.email_service import EmailService, EmailType
-from app.utils.helpers import hash_ip, mask_email, transform_time, get_location_from_ip
+from app.utils.helpers import hash_ip, mask_email, transform_time, get_client_ip
 from app.utils.db_helpers import get_user_by_email
 from app.services.email_sender_service import EmailSenderService
 
@@ -348,7 +348,7 @@ class AuthService:
             HTTPException: 403 Forbidden if the user account is not verified.
             HTTPException: 403 Forbidden after several invalid login attempts.
         """
-        raw_ip = request.client.host # type: ignore
+        raw_ip = get_client_ip(request=request)
         hashed_ip = hash_ip(raw_ip)
 
         existing_user = get_user_by_email(email=login_request.email, db=db)

@@ -12,7 +12,7 @@ from app.schemas.user_schemas import UserUpdate, ChangePasswordRequest
 from app.schemas.auth_schemas import VerificationCodeOnlyRequest
 from app.services.email_service import EmailService, EmailType
 from app.core.security import hash_password, verify_password, generate_secure_code
-from app.utils.helpers import hash_ip
+from app.utils.helpers import hash_ip, get_client_ip
 from app.utils.db_helpers import get_user_by_email
 
 
@@ -176,7 +176,8 @@ class UserService:
         Raises:
             HTTPException: 400 Bad Request if the verification code is invalid or expired.
         """
-        ip = hash_ip(request.client.host)  # type: ignore
+        raw_ip = get_client_ip(request=request)
+        ip = hash_ip(raw_ip)
 
         logger.info(
             msg="Account Deletion Request",
@@ -236,7 +237,8 @@ class UserService:
 # =========== TODO ===========
     @staticmethod
     async def request_data_gdpr(request: Request, current_user: User, db: Session, background_tasks=None) -> None:
-        ip = hash_ip(request.client.host)  # type: ignore
+        raw_ip = get_client_ip(request=request)
+        ip = hash_ip(raw_ip)
 
         existing_user = get_user_by_email(email=current_user.email, db=db)
         

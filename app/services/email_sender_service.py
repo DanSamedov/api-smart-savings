@@ -1,4 +1,4 @@
-# app/utils/email_sender_service.py
+# app/services/email_sender_service.py
 
 from app.services.email_service import EmailService, EmailType
 from app.utils.helpers import get_location_from_ip

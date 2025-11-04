@@ -31,10 +31,16 @@ def mask_email(email: str) -> str:
 
 def transform_time(time: datetime) -> str:
     """Return a user-friendly time as string."""
-    local_dt = time.astimezone(ZoneInfo("Europe/London"))
+    local_dt = time.astimezone(ZoneInfo("Europe/Warsaw"))
     transformed = local_dt.strftime("%b %d, %Y %I:%M %p %Z")
     return transformed
 
+def get_client_ip(request) -> str:
+    """Get real client IP, considering proxies."""
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.client.host
 
 async def get_location_from_ip(ip: str) -> str:
     """
