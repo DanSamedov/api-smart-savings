@@ -113,7 +113,7 @@ async def resend_verification(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     await AuthService.resend_verification_code(
-        email=email_request.email,
+        email_only_req=email_request,
         db=db,
         background_tasks=background_tasks,
     )
@@ -186,7 +186,7 @@ async def request_password_reset(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     await AuthService.request_password_reset(
-        email=email_request.email,
+        email_only_req=email_request,
         db=db,
         background_tasks=background_tasks,
     )
@@ -224,7 +224,7 @@ async def logout_all_devices(
     
     return standard_response(
         status="success",
-        message="Successfully logged out from all devices"
+        message="Successfully logged out from all devices."
     )
 
 
