@@ -24,7 +24,7 @@ PASSWORD = settings.DOCS_PASSWORD
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     """
-    Authenticate credentials for API-Docs URL.
+    Authenticate credentials for the API-Docs URL.
     """
     if USERNAME is None or PASSWORD is None:
         raise HTTPException(
@@ -46,68 +46,51 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session)
 ) -> User:
     """
-    Get the current authenticated user from the JWT token.
-    
-    Validates the JWT token from the Authorization header and returns the
-    corresponding user from the database. Verifies token version and account status.
-    
-    Args:
-        token: JWT token from Authorization header
-        session: Database session
-        
-    Returns:
-        User: Current authenticated user
-        
-    Raises:
-        HTTPException: 401 if token is invalid or user not found
-        HTTPException: 403 if account is deleted
+    Retrieve the current authenticated user from a JWT token.
+    Performs token validation, version check, and account status checks.
     """
+    def unauthorized(detail: str = "Could not validate credentials"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail
+        )
+
     try:
         payload = decode_token(token)
         user_email = payload.get("sub")
         token_version = payload.get("ver")
-        
+
         if not user_email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-            )
+            return unauthorized("Invalid authentication credentials")
 
         user = get_user_by_email(email=user_email, db=session)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No account found with this email",
-            )
+            return unauthorized("No account found with this email")
 
+        # Token version check comes immediately after fetching user
+        if token_version != user.token_version:
+            return unauthorized("Token has been invalidated. Please log in again")
+
+        # Account status checks
         if not user.is_verified:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account is not verified.",
+                detail="Your account is not verified."
             )
-            
+
         if user.is_deleted:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account is scheduled for deletion",
-            )
-
-        # Verify token version matches user's current version
-        if token_version != user.token_version:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has been invalidated. Please log in again",
+                detail="Your account is scheduled for deletion"
             )
 
         return user
-        
+
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
+    except Exception:
+        return unauthorized()
