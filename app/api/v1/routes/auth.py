@@ -3,7 +3,7 @@
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.middleware.rate_limiter import limiter
 from app.infra.database.session import get_session
@@ -24,7 +24,7 @@ async def register(
     request: Request,
     register_request: RegisterRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Register a new user account.
@@ -43,7 +43,7 @@ async def register(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     auth_service = AuthService(db)
-    await auth_service.register_new_user(register_request=register_request)
+    await auth_service.register_new_user(register_request=register_request, background_tasks=background_tasks)
 
     return standard_response(
         status="success",
@@ -57,7 +57,7 @@ async def verify_email(
     request: Request,
     verify_email_request: VerifyEmailRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Endpoint to verify a user's email address.
@@ -79,7 +79,7 @@ async def verify_email(
     """
     auth_service = AuthService(db)
     await auth_service.verify_user_email(
-        verify_email_request=verify_email_request
+        verify_email_request=verify_email_request, background_tasks=background_tasks
     )
 
     return standard_response(
@@ -93,7 +93,7 @@ async def resend_verification(
     request: Request,
     email_request: EmailOnlyRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Resend verification code to a user's email address.
@@ -116,7 +116,7 @@ async def resend_verification(
     auth_service = AuthService(db)
     await auth_service.resend_verification_code(
         email_only_req=email_request,
-        background_tasks=background_tasks,
+        background_tasks=background_tasks
     )
 
     return standard_response(
@@ -131,7 +131,7 @@ async def reset_password(
     request: Request,
     reset_request: ResetPasswordRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Reset user's password using a valid reset token.
@@ -153,7 +153,7 @@ async def reset_password(
     auth_service = AuthService(db)
     await auth_service.reset_password(
         reset_request=reset_request,
-        background_tasks=background_tasks,
+        background_tasks=background_tasks
     )
 
     return standard_response(
@@ -168,7 +168,7 @@ async def request_password_reset(
     request: Request,
     email_request: EmailOnlyRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Request a password reset email.
@@ -189,7 +189,7 @@ async def request_password_reset(
     auth_service = AuthService(db)
     await auth_service.request_password_reset(
         email_only_req=email_request,
-        background_tasks=background_tasks,
+        background_tasks=background_tasks
     )
 
     return standard_response(
@@ -203,7 +203,7 @@ async def request_password_reset(
 async def logout_all_devices(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Logout from all devices by invalidating all existing tokens.
@@ -235,7 +235,7 @@ async def login(
     request: Request,
     login_request: LoginRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Authenticate a user and issue an access token.
@@ -257,7 +257,7 @@ async def login(
     """
     auth_service = AuthService(db)
     response = await auth_service.login_existing_user(
-        request=request, login_request=login_request
+        request=request, login_request=login_request, background_tasks=background_tasks
     )
 
     return standard_response(

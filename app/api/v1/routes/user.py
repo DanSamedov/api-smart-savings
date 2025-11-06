@@ -3,7 +3,7 @@
 from typing import Any
 
 from fastapi import Request, APIRouter, Depends, status, BackgroundTasks
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.database.session import get_session
 from app.modules.user.models import User
@@ -21,7 +21,7 @@ router = APIRouter()
 @limiter.limit("20/minute")
 async def get_user_info(
     request: Request, current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    db: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     """
     Retrieve the currently authenticated user's profile details.
@@ -52,7 +52,7 @@ async def update_user_info(
     request: Request,
     update_request: UserUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Partially update the currently authenticated user's details.
@@ -78,7 +78,7 @@ async def update_user_info(
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-async def change_user_password(request: Request, change_password_request: ChangePasswordRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)) -> dict[str, Any]:
+async def change_user_password(request: Request, change_password_request: ChangePasswordRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_session)) -> dict[str, Any]:
     """
     Update currently authenticated user password, requires current password for verification.
 
@@ -93,7 +93,7 @@ async def change_user_password(request: Request, change_password_request: Change
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     user_service = UserService(db)
-    await user_service.update_user_password(change_password_request=change_password_request, current_user=current_user)
+    await user_service.update_user_password(change_password_request=change_password_request, current_user=current_user, background_tasks=background_tasks)
     
     return standard_response(
         status="success",
@@ -108,7 +108,7 @@ async def change_user_email(
     change_email_request: ChangeEmailRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    db: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     """
     Change the email address for the currently authenticated user.
@@ -136,7 +136,6 @@ async def change_user_email(
     await user_service.change_user_email(
         change_email_request=change_email_request,
         current_user=current_user,
-        db=db,
         background_tasks=background_tasks
     )
     
@@ -152,7 +151,7 @@ async def request_account_deletion(
     request: Request,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    db: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     """
     Request a verification code for account deletion.
@@ -171,7 +170,7 @@ async def request_account_deletion(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     user_service = UserService(db)
-    await user_service.request_delete_account(current_user=current_user)
+    await user_service.request_delete_account(current_user=current_user, background_tasks=background_tasks)
     
     return standard_response(
         status="success",
@@ -186,7 +185,7 @@ async def schedule_account_deletion(
     background_tasks: BackgroundTasks,
     deletion_request: VerificationCodeOnlyRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    db: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     """
     Verify the account deletion code and schedule the user's account for deletion.
@@ -203,7 +202,7 @@ async def schedule_account_deletion(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     user_service = UserService(db)
-    await user_service.schedule_account_delete(request=request, current_user=current_user, deletion_request=deletion_request)
+    await user_service.schedule_account_delete(request=request, current_user=current_user, deletion_request=deletion_request, background_tasks=background_tasks)
     
     return standard_response(
         status="success",
@@ -216,7 +215,7 @@ async def schedule_account_deletion(
 async def view_login_history(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    db: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     """
     Retrieve login activity details for the current user.
@@ -242,7 +241,7 @@ async def view_login_history(
 
 @router.post("/gdpr-request", status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("2/hour")
-async def request_user_data_gdpr(request: Request, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)) -> dict[str, Any]:
+async def request_user_data_gdpr(request: Request, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_session)) -> dict[str, Any]:
 
     user_service = UserService(db)
     await user_service.request_data_gdpr(request=request, current_user=current_user)

@@ -33,7 +33,7 @@ AsyncSessionLocal = sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
-)
+) # type: ignore
 
 # Set UTC timezone for DB
 async def set_utc_timezone():

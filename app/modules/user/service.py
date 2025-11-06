@@ -20,7 +20,6 @@ from app.modules.user.repository import UserRepository
 class UserService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
-        self.email_service = EmailService()
 
     async def get_user_details(self, current_user: User) -> dict[str, Any]:
         """
@@ -74,14 +73,13 @@ class UserService:
         )
 
         # Send password change notification email
-        task_args = {
-            "email_type": EmailType.PASSWORD_CHANGE_NOTIFICATION,
-            "email_to": [current_user.email],
-        }
-
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **task_args)
-
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.PASSWORD_CHANGE_NOTIFICATION,
+            email_to=[current_user.email]
+        )
+    
     async def request_delete_account(self, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:        
         """
         Initiate the account deletion process for the current user.
@@ -110,22 +108,19 @@ class UserService:
             },
         )
 
-        email_args = {
-            "email_type": EmailType.ACCOUNT_DELETION_REQUEST,
-            "email_to": [current_user.email],
-            "verification_code": code,
-        }
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.ACCOUNT_DELETION_REQUEST,
+            email_to=[current_user.email],
+            verification_code=code
+        )
 
-        # Dispatch email
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-             
     async def schedule_account_delete(
         self,
         request: Request,
         current_user: User,
         deletion_request: VerificationCodeOnlyRequest,
-        db: AsyncSession,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> None:
         """
@@ -175,14 +170,13 @@ class UserService:
         await self.user_repo.update(current_user, updates)
 
         # Send confirmation email
-        email_args = {
-            "email_type": EmailType.ACCOUNT_DELETION_SCHEDULED,
-            "email_to": [current_user.email],
-        }
-
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.ACCOUNT_DELETION_SCHEDULED,
+            email_to=[current_user.email]
+        )
+    
     async def get_login_history(self, current_user: User) -> dict:
         """
         Get login activity details for a user.
@@ -202,7 +196,6 @@ class UserService:
         self,
         change_email_request: ChangeEmailRequest,
         current_user: User,
-        db: AsyncSession,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> None:
         """
@@ -244,15 +237,12 @@ class UserService:
         await self.user_repo.update(current_user, updates)
 
         # Send verification email
-        email_args = {
-            "email_type": EmailType.VERIFICATION,
-            "email_to": [new_email],
-            "verification_code": verification_code,
-        }
-
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.EMAIL_CHANGE_NOTIFICATION,
+            email_to=[new_email]
+        )
 
 # =========== TODO ===========
     async def request_data_gdpr(self, request: Request, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:

@@ -1,8 +1,10 @@
 # app/modules/email/service.py
 
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 from enum import StrEnum
+import asyncio
 
+from fastapi import BackgroundTasks
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from jinja2 import Template
 
@@ -29,6 +31,7 @@ class EmailType(StrEnum):
     ACCOUNT_DELETION_SCHEDULED = "account_deletion_scheduled"
     ACCOUNT_LOCKED = "account_locked"
     ACCOUNT_DISABLED = "account_disabled"
+    EMAIL_CHANGE_NOTIFICATION = "email_change_notification"
     PASSWORD_RESET_NOTIFICATION = "password_reset_notification"
     PASSWORD_CHANGE_NOTIFICATION = "password_change_notification"
 
@@ -134,6 +137,12 @@ class EmailService:
                 subject_template=f"[{app_name}] Account Password Modified",
                 template_rel_path="account/notify-password-change.html"
             )
+        elif email_type == EmailType.EMAIL_CHANGE_NOTIFICATION:
+            await EmailService._send_email(
+                email_to=email_to,
+                subject_template=f"[{app_name}] Account Email Modified",
+                template_rel_path="account/notify-email-change.html"
+            )
         elif email_type == EmailType.ACCOUNT_DELETION_REQUEST and verification_code:
             await EmailService._send_email(
                 email_to=email_to,
@@ -164,3 +173,20 @@ class EmailService:
                 subject_template=f"[{app_name}][Action Required] Account Disabled",
                 template_rel_path="account/account-disabled.html"
             )
+
+    @staticmethod
+    async def schedule_email(
+        email_func: Callable[..., Awaitable[None]], 
+        background_tasks: Optional[BackgroundTasks] = None, 
+        **kwargs
+    ):
+        """
+        Schedule async email function to run in background if BackgroundTasks is provided,
+        otherwise await immediately.
+        """
+        if background_tasks:
+            background_tasks.add_task(email_func, **kwargs)
+        else:
+            # await directly if no background tasks
+            await email_func(**kwargs)
+        

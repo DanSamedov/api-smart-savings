@@ -29,7 +29,6 @@ from app.core.utils.exceptions import CustomException
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
-        self.email_service = EmailService()
 
     async def register_new_user(
         self,
@@ -60,21 +59,19 @@ class AuthService:
             updated_at=datetime.now(timezone.utc),
             is_verified=False,
             is_deleted=False,
-        )
+        ) # type: ignore
 
         # Persist via repository
         await self.user_repo.create(new_user)
 
-        # Prepare email details
-        email_args = {
-            "email_type": EmailType.VERIFICATION,
-            "email_to": [new_user.email],
-            "verification_code": verification_code,
-        }
-
         # Dispatch verification email
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.VERIFICATION,
+            email_to=[register_request.email],
+            verification_code=verification_code
+        )
 
     async def verify_user_email(
         self,
@@ -115,13 +112,12 @@ class AuthService:
         await self.user_repo.update(user, updates)
 
         # Send welcome email
-        email_args = {
-            "email_type": EmailType.WELCOME,
-            "email_to": [user.email],
-        }
-
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.WELCOME,
+            email_to=[user.email],
+        )
 
     async def resend_verification_code(
         self,
@@ -153,14 +149,13 @@ class AuthService:
         await self.user_repo.update(user, updates)
 
         # Send verification email
-        email_args = {
-            "email_type": EmailType.VERIFICATION,
-            "email_to": [user.email],
-            "verification_code": verification_code,
-        }
-
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.VERIFICATION,
+            email_to=[user.email],
+            verification_code=verification_code,
+        )
 
     async def login_existing_user(
         self,
@@ -185,7 +180,7 @@ class AuthService:
         
         # Guard: disabled/unverified users
         if not user.is_enabled and user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS:
-            await self._handle_disabled_account(user, raw_ip, background_tasks)
+            await self._handle_disabled_account(user, background_tasks)
 
         if not user.is_verified:
             raise CustomException._403_forbidden("Your account is unverified, kindly verify your email.")
@@ -211,15 +206,13 @@ class AuthService:
 
         # Send login notification
         login_at = transform_time(user.last_login_at)
-        if background_tasks:
-            background_tasks.add_task(
-                asyncio.run,
-                EmailSender.send_login_notification_email(
-                    email_to=user.email,
-                    ip=raw_ip,
-                    time=login_at,
-                ),
-            )
+        await EmailService.schedule_email(
+            EmailSender.send_login_notification_email,
+            background_tasks=background_tasks,
+            email_to=user.email,
+            ip=raw_ip,
+            time=login_at,
+        )
 
         return {
             "token": access_token,
@@ -237,8 +230,9 @@ class AuthService:
         """
         Increment failed login attempts and lock account if limit reached.
         """
+        now = datetime.now(timezone.utc)
         user.failed_login_attempts += 1
-        user.last_failed_login_at = datetime.now(timezone.utc)
+        user.last_failed_login_at = now
 
         logger.warning(
             msg="Failed login attempt",
@@ -259,18 +253,17 @@ class AuthService:
 
             await self.user_repo.update(user, updates)
 
-            login_failed_at = transform_time(user.last_failed_login_at)
+            locked_at = transform_time(user.last_failed_login_at)
 
             # Send account locked email
-            if background_tasks:
-                background_tasks.add_task(
-                    asyncio.run,
-                    EmailSender.send_account_locked_email(
-                        email_to=user.email,
-                        ip=raw_ip,
-                        time=login_failed_at,
-                    ),
-                )
+            await EmailService.schedule_email(
+                EmailSender.send_account_locked_email,
+                background_tasks=background_tasks,
+                email_to=user.email,
+                ip=raw_ip,
+                time=locked_at,
+            )
+
 
             raise CustomException._403_forbidden(
                 "Your account is temporarily locked due to failed login attempts. Check your email."
@@ -282,18 +275,15 @@ class AuthService:
     async def _handle_disabled_account(
         self,
         user: User,
-        raw_ip: str,
         background_tasks: Optional[BackgroundTasks],
     ) -> None:
         """
         Send email for disabled account and raise forbidden error.
         """
-        if background_tasks:
-            background_tasks.add_task(
-                asyncio.run,
-                EmailSender.send_account_disabled_email(
-                    email_to=user.email
-                ),
+        await EmailService.schedule_email(
+            EmailSender.send_account_disabled_email,
+                background_tasks=background_tasks,
+                email_to=user.email
             )
         raise CustomException._403_forbidden(
             "Your account is disabled, kindly check your email."
@@ -331,8 +321,13 @@ class AuthService:
         }
 
         # Send email via background tasks or await directly
-        if background_tasks:
-            background_tasks.add_task(self.email_service.send_templated_email, **email_args)
+        await EmailService.schedule_email(
+            EmailService.send_templated_email,
+            background_tasks=background_tasks,
+            email_type=EmailType.PASSWORD_RESET,
+            email_to=[user_email],
+            reset_token=reset_token
+        )
 
     async def reset_password(
         self,
@@ -368,15 +363,13 @@ class AuthService:
             reset_time = transform_time(user.updated_at)
 
             # Send password reset notification
-            email_args = {
-                "email_type": EmailType.PASSWORD_RESET_NOTIFICATION,
-                "email_to": [user.email],
-                "reset_time": reset_time,
-            }
-
-            if background_tasks:
-                background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-
+            await EmailService.schedule_email(
+                EmailService.send_templated_email,
+                background_tasks=background_tasks,
+                email_type=EmailType.PASSWORD_RESET_NOTIFICATION,
+                email_to=[user.email],
+                time=reset_time
+            )
             # Log success
             logger.info(
                 "Password reset successful",
