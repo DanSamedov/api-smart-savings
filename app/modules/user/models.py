@@ -37,7 +37,7 @@ class UserBase(SQLModel):
 class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
@@ -45,16 +45,16 @@ class User(UserBase, table=True):
             onupdate=func.now(),
         )
     )
-    last_login_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     language_preference: Optional[str] = None
 
     verification_code: Optional[str] = None
-    verification_code_expires_at: Optional[datetime] = None
+    verification_code_expires_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     token_version: int = Field(default=0)    
     failed_login_attempts: int = Field(default=0)
-    last_failed_login_at: Optional[datetime] = None
+    last_failed_login_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
 
-    deleted_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
 
     def __setattr__(self, name, value) -> None:
         """

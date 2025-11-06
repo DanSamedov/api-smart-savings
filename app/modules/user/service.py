@@ -4,7 +4,7 @@ from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import Request, BackgroundTasks
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.middleware. logging import logger
 from app.core.utils.exceptions import CustomException
@@ -18,7 +18,7 @@ from app.modules.user.repository import UserRepository
 
 
 class UserService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
         self.email_service = EmailService()
 
@@ -49,10 +49,10 @@ class UserService:
             return {"message": "No changes provided."}
         
         # Fetch the user (exists by JWT, so no need to validate existence)
-        existing_user = self.user_repo.get_by_email(current_user.email)
+        user = await self.user_repo.get_by_email(current_user.email)
         
         # Update only fields that were provided
-        self.user_repo.update(existing_user, update_data)
+        await self.user_repo.update(user, update_data)
         
         return {"message": "User details updated successfully."}
         
@@ -60,33 +60,27 @@ class UserService:
         """
         Update the currently authenticated user's password, verifying the current password first.
         """
-        # Fetch the user
-        existing_user = self.user_repo.get_by_email(current_user.email)
-        user_email = existing_user.email
-
         current_pass = change_password_request.current_password
         
         # Verify old password
-        if not verify_password(plain_password=current_pass, hashed_password=existing_user.password_hash):
+        if not verify_password(plain_password=current_pass, hashed_password=current_user.password_hash):
             CustomException._403_forbidden("Invalid current password.")
         
         new_hashed_password = hash_password(change_password_request.new_password)
         # Update via repository
-        self.user_repo.update(
-            existing_user,
+        await self.user_repo.update(
+            current_user,
             {"password_hash": new_hashed_password},
         )
 
         # Send password change notification email
         task_args = {
             "email_type": EmailType.PASSWORD_CHANGE_NOTIFICATION,
-            "email_to": [existing_user.email],
+            "email_to": [current_user.email],
         }
 
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **task_args)
-        else:
-            await self.email_service.send_templated_email(**task_args)
 
     async def request_delete_account(self, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:        
         """
@@ -108,7 +102,7 @@ class UserService:
         code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
         
-        self.user_repo.update(
+        await self.user_repo.update(
             current_user,
             {
                 "verification_code": code,
@@ -125,15 +119,13 @@ class UserService:
         # Dispatch email
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
              
     async def schedule_account_delete(
         self,
         request: Request,
         current_user: User,
         deletion_request: VerificationCodeOnlyRequest,
-        db: Session,
+        db: AsyncSession,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> None:
         """
@@ -180,7 +172,7 @@ class UserService:
             "verification_code": None,
             "verification_code_expires_at": None,
         }
-        self.user_repo.update(current_user, updates)
+        await self.user_repo.update(current_user, updates)
 
         # Send confirmation email
         email_args = {
@@ -190,8 +182,6 @@ class UserService:
 
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
 
     async def get_login_history(self, current_user: User) -> dict:
         """
@@ -212,7 +202,7 @@ class UserService:
         self,
         change_email_request: ChangeEmailRequest,
         current_user: User,
-        db: Session,
+        db: AsyncSession,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> None:
         """
@@ -221,28 +211,28 @@ class UserService:
         new_email = change_email_request.new_email.lower().strip()
         old_email = current_user.email.lower().strip()
 
-        # 1. Prevent redundant changes
+        # Prevent redundant changes
         if new_email == old_email:
             raise CustomException._400_bad_request(
                 "The new email must be different from your current email."
             )
 
-        # 2. Prevent email duplication
-        if self.user_repo.get_by_email(new_email):
+        # Prevent email duplication
+        if await self.user_repo.get_by_email(new_email):
             raise CustomException._409_conflict("An account with this email already exists.")
 
-        # 3. Verify user password before proceeding
+        # Verify user password
         if not verify_password(
             plain_password=change_email_request.password,
             hashed_password=current_user.password_hash,
         ):
             raise CustomException._403_forbidden("Invalid password.")
 
-        # 4. Prepare verification code and expiry
+        # Prepare verification code and expiry
         verification_code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-        # 5. Update user record through repository
+        # Update user record through repository
         updates = {
             "email": new_email,
             "is_verified": False,
@@ -251,9 +241,9 @@ class UserService:
             "token_version": current_user.token_version + 1,  # invalidate existing tokens
         }
 
-        self.user_repo.update(current_user, updates)
+        await self.user_repo.update(current_user, updates)
 
-        # 6. Send verification email
+        # Send verification email
         email_args = {
             "email_type": EmailType.VERIFICATION,
             "email_to": [new_email],
@@ -262,16 +252,14 @@ class UserService:
 
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
-        
+
 
 # =========== TODO ===========
     async def request_data_gdpr(self, request: Request, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:
         raw_ip = get_client_ip(request=request)
         ip = hash_ip(raw_ip)
 
-        existing_user = self.user_repo.get_by_email(current_user.email)
+        user = await self.user_repo.get_by_email(current_user.email)
         
         logger.info(
             msg="GDPR Data Request",

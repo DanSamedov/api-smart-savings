@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from fastapi import Request, HTTPException, BackgroundTasks
-from sqlmodel import Session
+from fastapi import Request, BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security.jwt import create_access_token, create_password_reset_token, decode_token
@@ -27,7 +27,7 @@ from app.core.utils.exceptions import CustomException
 
 
 class AuthService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
         self.email_service = EmailService()
 
@@ -40,8 +40,8 @@ class AuthService:
         Register a new user and initiate email verification.
         """
         # Check for existing user
-        existing_user = self.user_repo.get_by_email_or_none(register_request.email)
-        if existing_user:
+        user = await self.user_repo.get_by_email_or_none(register_request.email)
+        if user:
             raise CustomException._409_conflict(
                 "An account with this email already exists. Try logging in."
             )
@@ -63,7 +63,7 @@ class AuthService:
         )
 
         # Persist via repository
-        self.user_repo.create(new_user)
+        await self.user_repo.create(new_user)
 
         # Prepare email details
         email_args = {
@@ -75,8 +75,6 @@ class AuthService:
         # Dispatch verification email
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
 
     async def verify_user_email(
         self,
@@ -87,23 +85,23 @@ class AuthService:
         Verify a user's email address using a verification code.
         """
         # Fetch user
-        existing_user = self.user_repo.get_by_email_or_none(verify_email_request.email)
-        if not existing_user:
+        user = await self.user_repo.get_by_email_or_none(verify_email_request.email)
+        if not user:
             raise CustomException._404_not_found("Account does not exist.")
 
         # Guard: already verified
-        if existing_user.is_verified:
+        if user.is_verified:
             raise CustomException._409_conflict("Account is already verified.")
 
         # Normalize timezone for expiry check
-        expires_at = existing_user.verification_code_expires_at
+        expires_at = user.verification_code_expires_at
         if expires_at and expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         # Validate code
         if (
-            existing_user.verification_code != verify_email_request.verification_code
-            or not existing_user.verification_code_expires_at
+            user.verification_code != verify_email_request.verification_code
+            or not user.verification_code_expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
             raise CustomException._400_bad_request("Verification code is invalid or has expired.")
@@ -114,18 +112,16 @@ class AuthService:
             "verification_code": None,
             "verification_code_expires_at": None,
         }
-        self.user_repo.update(existing_user, updates)
+        await self.user_repo.update(user, updates)
 
         # Send welcome email
         email_args = {
             "email_type": EmailType.WELCOME,
-            "email_to": [existing_user.email],
+            "email_to": [user.email],
         }
 
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
 
     async def resend_verification_code(
         self,
@@ -137,12 +133,12 @@ class AuthService:
         """
 
         # Fetch user
-        existing_user = self.user_repo.get_by_email_or_none(email_only_req.email)
-        if not existing_user:
+        user = await self.user_repo.get_by_email_or_none(email_only_req.email)
+        if not user:
             raise CustomException._404_not_found("Account does not exist.")
 
         # Guard: already verified
-        if existing_user.is_verified:
+        if user.is_verified:
             raise CustomException._409_conflict("Account is already verified.")
 
         # Generate new verification code
@@ -154,19 +150,17 @@ class AuthService:
             "verification_code": verification_code,
             "verification_code_expires_at": expires_at,
         }
-        self.user_repo.update(existing_user, updates)
+        await self.user_repo.update(user, updates)
 
         # Send verification email
         email_args = {
             "email_type": EmailType.VERIFICATION,
-            "email_to": [existing_user.email],
+            "email_to": [user.email],
             "verification_code": verification_code,
         }
 
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
 
     async def login_existing_user(
         self,
@@ -181,30 +175,30 @@ class AuthService:
         hashed_ip = hash_ip(raw_ip)
 
         # Fetch user
-        existing_user = self.user_repo.get_by_email_or_none(login_request.email)
-        if not existing_user:
+        user = await self.user_repo.get_by_email_or_none(login_request.email)
+        if not user:
             raise CustomException._401_unauthorized("Invalid login credentials.")
 
         # Verify password
-        if not verify_password(login_request.password, existing_user.password_hash):
-            await self._handle_failed_login(existing_user, raw_ip, hashed_ip, background_tasks)
+        if not verify_password(login_request.password, user.password_hash):
+            await self._handle_failed_login(user, raw_ip, hashed_ip, background_tasks)
         
         # Guard: disabled/unverified users
-        if not existing_user.is_enabled and existing_user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS:
-            await self._handle_disabled_account(existing_user, raw_ip, background_tasks)
+        if not user.is_enabled and user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS:
+            await self._handle_disabled_account(user, raw_ip, background_tasks)
 
-        if not existing_user.is_verified:
+        if not user.is_verified:
             raise CustomException._403_forbidden("Your account is unverified, kindly verify your email.")
 
         # Reactivate if marked deleted
-        if existing_user.is_deleted:
-            existing_user.is_deleted = False
-            existing_user.deleted_at = None
+        if user.is_deleted:
+            user.is_deleted = False
+            user.deleted_at = None
 
         # Generate JWT
         expire = datetime.now(timezone.utc) + timedelta(seconds=settings.JWT_EXPIRATION_TIME)
         access_token = create_access_token(
-            data={"sub": existing_user.email}, token_version=existing_user.token_version
+            data={"sub": user.email}, token_version=user.token_version
         )
 
         # Update login info & reset failed attempts
@@ -213,24 +207,18 @@ class AuthService:
             "failed_login_attempts": 0,
             "last_failed_login_at": None,
         }
-        self.user_repo.update(existing_user, updates)
+        await self.user_repo.update(user, updates)
 
         # Send login notification
-        login_at = transform_time(existing_user.last_login_at)
+        login_at = transform_time(user.last_login_at)
         if background_tasks:
             background_tasks.add_task(
                 asyncio.run,
                 EmailSender.send_login_notification_email(
-                    email_to=existing_user.email,
+                    email_to=user.email,
                     ip=raw_ip,
                     time=login_at,
                 ),
-            )
-        else:
-            await EmailSender.send_login_notification_email(
-                email_to=existing_user.email,
-                ip=raw_ip,
-                time=login_at,
             )
 
         return {
@@ -262,14 +250,14 @@ class AuthService:
                 "email": mask_email(user.email),
             },
         )
+        updates = {"failed_login_attempts": user.failed_login_attempts, "last_failed_login_at": now}
 
+        # Lock account if limit is reached
         if user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:
             user.is_enabled = False
-            self.user_repo.update(user, {
-                "is_enabled": user.is_enabled,
-                "failed_login_attempts": user.failed_login_attempts,
-                "last_failed_login_at": user.last_failed_login_at,
-            })
+            updates["is_enabled"] = False
+
+            await self.user_repo.update(user, updates)
 
             login_failed_at = transform_time(user.last_failed_login_at)
 
@@ -283,21 +271,12 @@ class AuthService:
                         time=login_failed_at,
                     ),
                 )
-            else:
-                await EmailSender.send_account_locked_email(
-                    email_to=user.email,
-                    ip=raw_ip,
-                    time=login_failed_at,
-                )
 
             raise CustomException._403_forbidden(
                 "Your account is temporarily locked due to failed login attempts. Check your email."
             )
 
-        self.user_repo.update(user, {
-            "failed_login_attempts": user.failed_login_attempts,
-            "last_failed_login_at": user.last_failed_login_at,
-        })
+        await self.user_repo.update(user, updates)
         raise CustomException._401_unauthorized("Invalid login credentials.")
 
     async def _handle_disabled_account(
@@ -316,9 +295,6 @@ class AuthService:
                     email_to=user.email
                 ),
             )
-        else:
-            await EmailSender.send_account_disabled_email(email_to=user.email)
-
         raise CustomException._403_forbidden(
             "Your account is disabled, kindly check your email."
         )
@@ -334,10 +310,10 @@ class AuthService:
         user_email = email_only_req.email.lower().strip()
 
         # Lookup user
-        existing_user = self.user_repo.get_by_email_or_none(user_email)
+        user = await self.user_repo.get_by_email_or_none(user_email)
 
         # If user does not exist, log and return success silently
-        if not existing_user:
+        if not user:
             logger.warning(
                 "Password reset requested for non-existent email",
                 extra={"email": mask_email(user_email)},
@@ -357,8 +333,6 @@ class AuthService:
         # Send email via background tasks or await directly
         if background_tasks:
             background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-        else:
-            await self.email_service.send_templated_email(**email_args)
 
     async def reset_password(
         self,
@@ -375,8 +349,8 @@ class AuthService:
                 raise CustomException._400_bad_request("Invalid reset token.")
 
             # Fetch user
-            existing_user = self.user_repo.get_by_email_or_none(token_data["sub"])
-            if not existing_user:
+            user = await self.user_repo.get_by_email_or_none(token_data["sub"])
+            if not user:
                 raise CustomException._404_not_found("Account not found.")
 
             # Update password and reset login state
@@ -386,33 +360,29 @@ class AuthService:
                 "updated_at": datetime.now(timezone.utc),
             }
 
-            if existing_user.last_failed_login_at is not None:
+            if user.last_failed_login_at is not None:
                 updates["is_enabled"] = True
 
-            self.user_repo.update(existing_user, updates)
+            await self.user_repo.update(user, updates)
 
-            reset_time = transform_time(existing_user.updated_at)
+            reset_time = transform_time(user.updated_at)
 
             # Send password reset notification
             email_args = {
                 "email_type": EmailType.PASSWORD_RESET_NOTIFICATION,
-                "email_to": [existing_user.email],
+                "email_to": [user.email],
                 "reset_time": reset_time,
             }
 
             if background_tasks:
                 background_tasks.add_task(self.email_service.send_templated_email, **email_args)
-            else:
-                await self.email_service.send_templated_email(**email_args)
 
             # Log success
             logger.info(
                 "Password reset successful",
-                extra={"email": mask_email(existing_user.email)},
+                extra={"email": mask_email(user.email)},
             )
 
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Password reset failed: {str(e)}")
             raise CustomException._400_bad_request("Invalid or expired reset token.")
@@ -422,5 +392,5 @@ class AuthService:
         Invalidate all existing JWT tokens for a user by incrementing User.token_version.
         """
         updates = {"token_version": user.token_version + 1}
-        self.user_repo.update(user, updates)
+        await self.user_repo.update(user, updates)
         

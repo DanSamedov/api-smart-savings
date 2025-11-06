@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.cron.jobs import hard_delete_expired_users
 from app.core.middleware.logging import LoggingMiddleware, cleanup_old_logs
 from app.core.middleware.rate_limiter import limiter
+from app.infra.database.session import set_utc_timezone
 from app.infra.database.init_db import delete_test_accounts, init_test_accounts
 from app.core.utils import error_handlers
 from app.core.utils.response import standard_response
@@ -30,9 +31,11 @@ async def lifespan(app: FastAPI):
     # Startup Events
     print(f"[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
     if settings.APP_ENV == "development":
-        init_test_accounts()
+        await init_test_accounts()
     cleanup_old_logs() # Cleanup old log files
 
+    await set_utc_timezone() # Set DB server to UTC
+    
     # Initialize and start the scheduler for cron jobs
     scheduler = AsyncIOScheduler()
     cron_interval_hours = settings.HARD_DELETE_CRON_INTERVAL_HOURS

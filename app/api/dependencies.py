@@ -5,7 +5,6 @@ import secrets
 from fastapi import Depends, HTTPException, status
 from fastapi.security import (HTTPBasic, HTTPBasicCredentials,
                               OAuth2PasswordBearer)
-from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.security.jwt import decode_token
@@ -43,7 +42,7 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 
-def get_current_user(
+async def get_current_user(
     token: str = Depends(oauth2_scheme),
     user_repo: UserRepository = Depends(lambda session=Depends(get_session): UserRepository(session)),
 ) -> User:
@@ -60,7 +59,7 @@ def get_current_user(
         if not user_email:
             CustomException._401_unauthorized("Invalid authentication credentials.")
 
-        user = user_repo.get_by_email(user_email)
+        user = await user_repo.get_by_email(user_email)
 
         if not user:
             CustomException._401_unauthorized("No account found with this email.")
