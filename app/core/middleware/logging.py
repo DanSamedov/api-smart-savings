@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import time
+from typing import Optional
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -80,10 +81,10 @@ if ENV != "development":
 
 # File (dev)
 if ENV != "production":
-    log_dir = Path(__file__).parent.parent / "logs"
+    log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
     file_handler = RotatingFileHandler(
-        log_dir / "savings-api-v1.log", maxBytes=5_000_000, backupCount=3
+        log_dir / "requests.log", maxBytes=5_000_000, backupCount=3
     )
     file_handler.setFormatter(JsonFormatter())
     logger.addHandler(file_handler)
@@ -182,18 +183,19 @@ def log_logs_cleanup(message: str = None):
     )
 
 
-def cleanup_old_logs():
+def cleanup_old_logs(log_dir: Optional[Path] = None, retention_days: Optional[int] = None):
     """Delete old logs based on retention days."""
     if ENV == "production":
-        return  # skip in production
+        return
 
-    log_dir = Path(__file__).parent.parent / "logs"
+    log_dir = log_dir or Path(__file__).parent.parent.parent / "logs"
     if not log_dir.exists():
         return
 
-    cutoff_time = time.time() - (LOG_RETENTION_DAYS * 86400)
+    retention_days = retention_days or LOG_RETENTION_DAYS
+    cutoff_time = time.time() - (retention_days * 86400)
 
-    for log_file in log_dir.glob("*savings-api-v1.log*"):
+    for log_file in log_dir.glob("*requests.log*"):
         if log_file.is_file():
             try:
                 with open(log_file, "r") as f:
@@ -210,17 +212,12 @@ def cleanup_old_logs():
                         if entry_datetime >= cutoff_time:
                             first_valid_index = i
                             break
-                        else:
-                            log_logs_cleanup()
                     except (json.JSONDecodeError, KeyError, ValueError):
                         continue
 
                 if first_valid_index > 0:
                     with open(log_file, "w") as f:
                         f.writelines(lines[first_valid_index:])
-                    log_logs_cleanup(
-                        f"Deleted {first_valid_index} old log entries from {log_file.name}"
-                    )
 
             except Exception as e:
                 cleanup_logger.error(

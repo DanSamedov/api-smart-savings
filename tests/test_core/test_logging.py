@@ -183,39 +183,21 @@ class TestCleanupOldLogs:
     def test_cleanup_removes_old_entries(self, tmp_path):
         log_dir = tmp_path / "logs"
         log_dir.mkdir()
-        log_file = log_dir / "savings-api-v1.log"
+        log_file = log_dir / "requests.log"
 
-        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime(
-            "%Y-%m-%d %H:%M:%S,%f"
-        )
-        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime(
-            "%Y-%m-%d %H:%M:%S,%f"
-        )
+        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S,%f")
+        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S,%f")
 
-        old_entry = json.dumps(
-            {"datetime": old_time, "level": "INFO", "message": "Old log"}
-        )
-        recent_entry = json.dumps(
-            {"datetime": recent_time, "level": "INFO", "message": "Recent log"}
-        )
+        old_entry = json.dumps({"datetime": old_time, "level": "INFO", "message": "Old log"})
+        recent_entry = json.dumps({"datetime": recent_time, "level": "INFO", "message": "Recent log"})
 
-        with open(log_file, "w") as f:
-            f.write(old_entry + "\n")
-            f.write(recent_entry + "\n")
+        log_file.write_text(f"{old_entry}\n{recent_entry}\n")
 
-        with patch("app.core.middleware.logging.Path") as mock_path_class:
-            mock_instance = MagicMock()
-            mock_instance.parent.parent.__truediv__.return_value = log_dir
-            mock_path_class.return_value = mock_instance
+        cleanup_old_logs(log_dir=log_dir, retention_days=7)
 
-            cleanup_old_logs()
-
-        with open(log_file, "r") as f:
-            remaining_lines = f.readlines()
-
+        remaining_lines = log_file.read_text().splitlines()
         assert len(remaining_lines) == 1
         assert "Recent log" in remaining_lines[0]
-        assert "Old log" not in remaining_lines[0]
 
     @patch("app.core.middleware.logging.ENV", "development")
     def test_cleanup_handles_nonexistent_log_dir(self):
