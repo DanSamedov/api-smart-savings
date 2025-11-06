@@ -18,6 +18,7 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates" / "email"
 
 class Settings(BaseSettings):
     APP_NAME: Optional[str] = None
+    APP_VERSION: Optional[str] = None
     APP_ENV: Optional[str] = None
 
     DOCS_USERNAME: Optional[str] = None

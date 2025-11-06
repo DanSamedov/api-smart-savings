@@ -14,12 +14,12 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.dependencies import authenticate
 from app.api.routers import main_router
 from app.core.config import settings
-from app.core.cron_jobs import hard_delete_expired_users
-from app.core.logging import LoggingMiddleware, cleanup_old_logs
-from app.core.rate_limiter import limiter
-from app.db.init_db import delete_test_accounts, init_test_accounts
-from app.utils import handlers
-from app.utils.response import standard_response
+from app.core.cron.jobs import hard_delete_expired_users
+from app.core.middleware.logging import LoggingMiddleware, cleanup_old_logs
+from app.core.middleware.rate_limiter import limiter
+from app.infra.database.init_db import delete_test_accounts, init_test_accounts
+from app.core.utils import error_handlers
+from app.core.utils.response import standard_response
 
 
 # =======================================
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     print(f"[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
     if settings.APP_ENV == "development":
         init_test_accounts()
-    cleanup_old_logs()
+    cleanup_old_logs() # Cleanup old log files
 
     # Initialize and start the scheduler for cron jobs
     scheduler = AsyncIOScheduler()
@@ -57,9 +57,10 @@ async def lifespan(app: FastAPI):
 # APP INSTANCE
 # =======================================
 app_name = settings.APP_NAME
+app_version = settings.APP_VERSION
 app = FastAPI(
     title=f"{app_name} API",
-    version="1.0.0",
+    version=app_version or "n/a",
     description="Backend service for a smart savings app.",
     docs_url=None,
     redoc_url=None,
@@ -102,10 +103,10 @@ app.include_router(main_router, prefix="/v1")
 # =======================================
 # EXCEPTION HANDLERS
 # =======================================
-app.add_exception_handler(RateLimitExceeded, handlers.rate_limit_handler)
-app.add_exception_handler(StarletteHTTPException, handlers.http_exception_handler)
-app.add_exception_handler(RequestValidationError, handlers.validation_exception_handler)
-app.add_exception_handler(Exception, handlers.generic_exception_handler)
+app.add_exception_handler(RateLimitExceeded, error_handlers.rate_limit_handler)
+app.add_exception_handler(StarletteHTTPException, error_handlers.http_exception_handler)
+app.add_exception_handler(RequestValidationError, error_handlers.validation_exception_handler)
+app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
 
 
 # =======================================
@@ -138,4 +139,4 @@ async def custom_redoc_ui(authenticated: bool = Depends(authenticate)):
 
 @app.get("/docs/openapi.json", include_in_schema=False)
 async def openapi_json(authenticated: bool = Depends(authenticate)):
-    return get_openapi(title=f"{app_name} API Docs", version="1.0.0", routes=app.routes)
+    return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=app.routes)

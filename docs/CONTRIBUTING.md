@@ -80,7 +80,7 @@ test: added test for verify email endpoint
 - Add a comment on the first line of every python file, indicating the directory i.e.,
 
 ```bash
-# app/services/auth_service.py
+# app/modules/auth/service.py
 ```
 
 - Keep consistent naming ( `snake_case` for Python)
