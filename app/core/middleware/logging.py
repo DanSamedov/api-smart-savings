@@ -192,7 +192,7 @@ def cleanup_old_logs(log_dir: Optional[Path] = None, retention_days: Optional[in
     if not log_dir.exists():
         return
 
-    retention_days = retention_days or LOG_RETENTION_DAYS
+    retention_days = retention_days or LOG_RETENTION_DAYS or 7
     cutoff_time = time.time() - (retention_days * 86400)
 
     for log_file in log_dir.glob("*requests.log*"):
