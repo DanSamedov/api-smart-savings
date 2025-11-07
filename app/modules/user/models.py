@@ -6,7 +6,9 @@ from typing import Optional
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, func
-from sqlmodel import Boolean, Field, SQLModel
+from sqlmodel import Boolean, Field, SQLModel, Relationship
+
+from app.modules.wallet.models import Currency, Wallet, Transaction
 
 
 class Role(StrEnum):
@@ -27,11 +29,15 @@ class UserBase(SQLModel):
     full_name: Optional[str] = Field(default=None)
     password_hash: str
     role: Role = Field(default=Role.USER)
+    preferred_currency: Currency = Field(default=Currency.EUR)
     is_verified: bool = Field(default=False, nullable=False)
     is_enabled: bool = Field(default=True)
     is_deleted: bool = Field(
         sa_column=Column(Boolean, nullable=False, server_default="false")
     )
+
+    wallet: "Wallet" = Relationship(back_populates="user")
+    transactions: list["Transaction"] = Relationship(back_populates="user")
 
 
 class User(UserBase, table=True):
