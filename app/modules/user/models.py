@@ -8,6 +8,8 @@ from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Boolean, Field, SQLModel, Relationship
 
+from app.modules.shared.enums import Currency
+
 if TYPE_CHECKING:
     from app.modules.wallet.models import Currency, Wallet, Transaction
 
