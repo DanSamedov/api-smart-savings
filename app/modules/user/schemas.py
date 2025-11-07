@@ -9,7 +9,8 @@ class UserUpdate(BaseModel):
     """Schema for partial update of user data."""
 
     full_name: Optional[str] = None
-    language_preference: Optional[str] = None
+    preferred_currency: Optional[str] = None
+    preferred_language: Optional[str] = None
     
 class ChangePasswordRequest(BaseModel):
     """Schema for update of user password, requires current password."""

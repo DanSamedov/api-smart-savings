@@ -2,9 +2,9 @@
 
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import uuid4, UUID
 
-from pydantic import EmailStr
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column, DateTime, func, Enum as SQLEnum
 from sqlmodel import Boolean, Field, SQLModel, Relationship
 
 from app.modules.shared.enums import Currency, Role
@@ -12,26 +12,19 @@ from app.modules.shared.enums import Currency, Role
 
 class UserBase(SQLModel):
     """Base user model containing core authentication and identity fields."""
-
-    __tablename__ = "app_user"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    email: EmailStr = Field(index=True, unique=True)
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    email: str = Field(index=True, unique=True)
     full_name: Optional[str] = Field(default=None)
     password_hash: str
-    role: Role = Field(default=Role.USER)
-    preferred_currency: Currency = Field(default=Currency.EUR)
-    is_verified: bool = Field(default=False, nullable=False)
-    is_enabled: bool = Field(default=True)
-    is_deleted: bool = Field(
-        sa_column=Column(Boolean, nullable=False, server_default="false")
-    )
-
-    transactions: "Transaction" = Relationship(back_populates="owner", cascade_delete=True)
+    role: Role = Field(sa_column=Column(SQLEnum(Role, name="role_enum"), nullable=False, server_default=Role.USER.value))
+    is_verified: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
+    is_enabled: bool =Field(sa_column=Column(Boolean, nullable=False, server_default="true"))
+    is_deleted: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
 
 
 class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
+    __tablename__ = "app_user"
 
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
     updated_at: Optional[datetime] = Field(
@@ -41,16 +34,20 @@ class User(UserBase, table=True):
             onupdate=func.now(),
         )
     )
-    last_login_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
-    language_preference: Optional[str] = None
-
-    verification_code: Optional[str] = None
+    deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     verification_code_expires_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
-    token_version: int = Field(default=0)    
-    failed_login_attempts: int = Field(default=0)
+    last_login_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     last_failed_login_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
 
-    deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    failed_login_attempts: int = Field(default=0)
+    verification_code: Optional[str] = None
+    token_version: int = Field(default=0)
+
+    preferred_currency: Currency = Field(sa_column=Column(SQLEnum(Currency, name="currency_enum"), nullable=False, server_default=Currency.EUR.value))
+    preferred_language: Optional[str] = None
+
+    wallet: "Wallet" = Relationship(back_populates="user", sa_relationship_kwargs={"uselist": False})
+    transactions: "Transaction" = Relationship(back_populates="owner", cascade_delete=True)
 
     def __setattr__(self, name, value) -> None:
         """
