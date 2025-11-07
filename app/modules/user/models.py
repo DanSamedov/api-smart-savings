@@ -1,25 +1,13 @@
 # app/modules/user/models.py
 
 from datetime import datetime, timezone
-from enum import StrEnum
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Boolean, Field, SQLModel, Relationship
 
-from app.modules.shared.enums import Currency
-
-if TYPE_CHECKING:
-    from app.modules.wallet.models import Currency, Wallet, Transaction
-
-
-class Role(StrEnum):
-    """Enumeration of user roles with increasing privileges."""
-
-    USER = "USER"
-    ADMIN = "ADMIN"
-    SUPER_ADMIN = "SUPER_ADMIN"
+from app.modules.shared.enums import Currency, Role
 
 
 class UserBase(SQLModel):
@@ -39,8 +27,7 @@ class UserBase(SQLModel):
         sa_column=Column(Boolean, nullable=False, server_default="false")
     )
 
-    wallet: "Wallet" = Relationship(back_populates="user")
-    transactions: list["Transaction"] = Relationship(back_populates="user")
+    transactions: "Transaction" = Relationship(back_populates="owner", cascade_delete=True)
 
 
 class User(UserBase, table=True):
@@ -77,3 +64,7 @@ class User(UserBase, table=True):
 
     def __post_init__(self):
         self._initialized = True
+
+from app.modules.wallet.models import Transaction
+
+User.model_rebuild()

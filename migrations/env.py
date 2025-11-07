@@ -12,7 +12,7 @@ from app.core.config import Settings
 # MODELS
 # ================================
 from app.modules.user.models import User
-
+from app.modules.wallet.models import Transaction, Wallet, ExchangeRate
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
