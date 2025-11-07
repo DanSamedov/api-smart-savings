@@ -2,13 +2,14 @@
 
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Boolean, Field, SQLModel, Relationship
 
-from app.modules.wallet.models import Currency, Wallet, Transaction
+if TYPE_CHECKING:
+    from app.modules.wallet.models import Currency, Wallet, Transaction
 
 
 class Role(StrEnum):

@@ -2,22 +2,15 @@
 
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, func, Numeric, CheckConstraint
 from sqlmodel import Boolean, Field, SQLModel, Relationship
+from app.modules.shared.enums import Currency, TransactionType, TransactionStatus
 
-from app.modules.user.models import User
-
-class Currency(StrEnum):
-    """Enumeration of supported currencies."""
-
-    EUR = "EUR"
-    USD = "USD"
-    PLN = "PLN"
-    GBP = "GBP"
-    CAD = "CAD"
+if TYPE_CHECKING:
+    from app.modules.user.models import User
 
 
 class Wallet(SQLModel, table=True):
@@ -61,23 +54,6 @@ class ExchangeRate(SQLModel, table=True):
             onupdate=func.now(),
         )
     )
-
-class TransactionType(StrEnum):
-    """Enumeration of transaction types."""
-
-    WALLET_DEPOSIT = "WALLET_DEPOSIT"
-    WALLET_WITHDRAWAL = "WALLET_WITHDRAWAL"
-    GROUP_SAVINGS_DEPOSIT = "GROUP_SAVINGS_DEPOSIT"
-    GROUP_SAVINGS_WITHDRAWAL = "GROUP_SAVINGS_WITHDRAWAL"
-    INDIVIDUAL_SAVINGS_DEPOSIT = "INDIVIDUAL_SAVINGS_DEPOSIT"
-    INDIVIDUAL_SAVINGS_WITHDRAWAL = "INDIVIDUAL_SAVINGS_WITHDRAWAL"
-
-class TransactionStatus(StrEnum):
-    """Enumeration of transaction statuses."""
-
-    PENDING = "PENDING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
 
 class Transaction(SQLModel, table=True):
     """
