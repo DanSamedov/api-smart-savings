@@ -35,7 +35,7 @@ def decode_token(token: str, expected_version: Optional[int] = None) -> dict[str
         if expected_version is not None:
             token_version = payload.get('ver')
             if token_version is None or token_version != expected_version:
-                CustomException._401_unauthorized("Token version mismatch.")
+                CustomException.e401_unauthorized("Token version mismatch.")
         return payload
     except JWTError as e:
         raise HTTPException(

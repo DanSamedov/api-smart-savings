@@ -39,9 +39,9 @@ class AuthService:
         Register a new user and initiate email verification.
         """
         # Check for existing user
-        user = await self.user_repo.get_by_email_or_none(register_request.email)
+        user = await self.user_repo.get_by_email_or_none(str(register_request.email))
         if user:
-            raise CustomException._409_conflict(
+            raise CustomException.e409_conflict(
                 "An account with this email already exists. Try logging in."
             )
 
@@ -82,13 +82,13 @@ class AuthService:
         Verify a user's email address using a verification code.
         """
         # Fetch user
-        user = await self.user_repo.get_by_email_or_none(verify_email_request.email)
+        user = await self.user_repo.get_by_email_or_none(str(verify_email_request.email))
         if not user:
-            raise CustomException._404_not_found("Account does not exist.")
+            raise CustomException.e404_not_found("Account does not exist.")
 
         # Guard: already verified
         if user.is_verified:
-            raise CustomException._409_conflict("Account is already verified.")
+            raise CustomException.e409_conflict("Account is already verified.")
 
         # Normalize timezone for expiry check
         expires_at = user.verification_code_expires_at
@@ -101,7 +101,7 @@ class AuthService:
             or not user.verification_code_expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
-            raise CustomException._400_bad_request("Verification code is invalid or has expired.")
+            raise CustomException.e400_bad_request("Verification code is invalid or has expired.")
 
         # Update user via repository
         updates = {
@@ -129,13 +129,13 @@ class AuthService:
         """
 
         # Fetch user
-        user = await self.user_repo.get_by_email_or_none(email_only_req.email)
+        user = await self.user_repo.get_by_email_or_none(str(email_only_req.email))
         if not user:
-            raise CustomException._404_not_found("Account does not exist.")
+            raise CustomException.e404_not_found("Account does not exist.")
 
         # Guard: already verified
         if user.is_verified:
-            raise CustomException._409_conflict("Account is already verified.")
+            raise CustomException.e409_conflict("Account is already verified.")
 
         # Generate new verification code
         verification_code = generate_secure_code()
@@ -170,9 +170,9 @@ class AuthService:
         hashed_ip = hash_ip(raw_ip)
 
         # Fetch user
-        user = await self.user_repo.get_by_email_or_none(login_request.email)
+        user = await self.user_repo.get_by_email_or_none(str(login_request.email))
         if not user:
-            raise CustomException._401_unauthorized("Invalid login credentials.")
+            raise CustomException.e401_unauthorized("Invalid login credentials.")
 
         # Verify password
         if not verify_password(login_request.password, user.password_hash):
@@ -183,7 +183,7 @@ class AuthService:
             await self._handle_disabled_account(user, background_tasks)
 
         if not user.is_verified:
-            raise CustomException._403_forbidden("Your account is unverified, kindly verify your email.")
+            raise CustomException.e403_forbidden("Your account is unverified, kindly verify your email.")
 
         # Reactivate if marked deleted
         if user.is_deleted:
@@ -241,7 +241,7 @@ class AuthService:
                 "path": "/v1/auth/login",
                 "status_code": 401,
                 "ip_anonymized": hashed_ip,
-                "email": mask_email(user.email),
+                "email": mask_email(str(user.email)),
             },
         )
         updates = {"failed_login_attempts": user.failed_login_attempts, "last_failed_login_at": now}
@@ -265,12 +265,12 @@ class AuthService:
             )
 
 
-            raise CustomException._403_forbidden(
+            raise CustomException.e403_forbidden(
                 "Your account is temporarily locked due to failed login attempts. Check your email."
             )
 
         await self.user_repo.update(user, updates)
-        raise CustomException._401_unauthorized("Invalid login credentials.")
+        raise CustomException.e401_unauthorized("Invalid login credentials.")
 
     async def _handle_disabled_account(
         self,
@@ -285,7 +285,7 @@ class AuthService:
                 background_tasks=background_tasks,
                 email_to=user.email
             )
-        raise CustomException._403_forbidden(
+        raise CustomException.e403_forbidden(
             "Your account is disabled, kindly check your email."
         )
 
@@ -297,7 +297,7 @@ class AuthService:
         """
         Process a password reset request safely, without revealing whether the user exists.
         """
-        user_email = email_only_req.email.lower().strip()
+        user_email = str(email_only_req.email).lower().strip()
 
         # Lookup user
         user = await self.user_repo.get_by_email_or_none(user_email)
@@ -341,12 +341,12 @@ class AuthService:
             # Decode and validate token
             token_data = decode_token(reset_request.reset_token)
             if token_data.get("type") != "password_reset":
-                raise CustomException._400_bad_request("Invalid reset token.")
+                raise CustomException.e400_bad_request("Invalid reset token.")
 
             # Fetch user
             user = await self.user_repo.get_by_email_or_none(token_data["sub"])
             if not user:
-                raise CustomException._404_not_found("Account not found.")
+                raise CustomException.e404_not_found("Account not found.")
 
             # Update password and reset login state
             updates = {
@@ -373,12 +373,12 @@ class AuthService:
             # Log success
             logger.info(
                 "Password reset successful",
-                extra={"email": mask_email(user.email)},
+                extra={"email": mask_email(str(user.email))},
             )
 
         except Exception as e:
             logger.error(f"Password reset failed: {str(e)}")
-            raise CustomException._400_bad_request("Invalid or expired reset token.")
+            raise CustomException.e400_bad_request("Invalid or expired reset token.")
 
     async def logout_all_devices(self, user: User) -> None:
         """

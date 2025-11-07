@@ -63,7 +63,7 @@ class UserService:
         
         # Verify old password
         if not verify_password(plain_password=current_pass, hashed_password=current_user.password_hash):
-            CustomException._403_forbidden("Invalid current password.")
+            CustomException.e403_forbidden("Invalid current password.")
         
         new_hashed_password = hash_password(change_password_request.new_password)
         # Update via repository
@@ -93,7 +93,7 @@ class UserService:
             and current_user.verification_code_expires_at
             and current_user.verification_code_expires_at > datetime.now(timezone.utc)
         ):
-            raise CustomException._400_bad_request(
+            raise CustomException.e400_bad_request(
                 "Account deletion already requested. Please wait until the previous code expires."
             )
     
@@ -142,7 +142,7 @@ class UserService:
 
         # Guard: already scheduled
         if current_user.is_deleted:
-            raise CustomException._409_conflict("Account is already scheduled for deletion.")
+            raise CustomException.e409_conflict("Account is already scheduled for deletion.")
 
         # Validate verification code
         ver_code = deletion_request.verification_code
@@ -158,7 +158,7 @@ class UserService:
             or not current_user.verification_code_expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
-            raise CustomException._400_bad_request("Invalid or expired verification code.")
+            raise CustomException.e400_bad_request("Invalid or expired verification code.")
 
         # Update user via repository
         updates = {
@@ -206,20 +206,20 @@ class UserService:
 
         # Prevent redundant changes
         if new_email == old_email:
-            raise CustomException._400_bad_request(
+            raise CustomException.e400_bad_request(
                 "The new email must be different from your current email."
             )
 
         # Prevent email duplication
         if await self.user_repo.get_by_email(new_email):
-            raise CustomException._409_conflict("An account with this email already exists.")
+            raise CustomException.e409_conflict("An account with this email already exists.")
 
         # Verify user password
         if not verify_password(
             plain_password=change_email_request.password,
             hashed_password=current_user.password_hash,
         ):
-            raise CustomException._403_forbidden("Invalid password.")
+            raise CustomException.e403_forbidden("Invalid password.")
 
         # Prepare verification code and expiry
         verification_code = generate_secure_code()

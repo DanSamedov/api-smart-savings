@@ -27,7 +27,7 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     Authenticate credentials for the API-Docs URL.
     """
     if USERNAME is None or PASSWORD is None:
-        CustomException._500_internal_server_error("Configuration error, please contact the development team.")
+        CustomException.e500_internal_server_error("Configuration error, please contact the development team.")
 
     correct_username = secrets.compare_digest(credentials.username, USERNAME)
     correct_password = secrets.compare_digest(credentials.password, PASSWORD)
@@ -57,25 +57,25 @@ async def get_current_user(
         token_version = payload.get("ver")
 
         if not user_email:
-            CustomException._401_unauthorized("Invalid authentication credentials.")
+            CustomException.e401_unauthorized("Invalid authentication credentials.")
 
         user = await user_repo.get_by_email(user_email)
 
         if not user:
-            CustomException._401_unauthorized("No account found with this email.")
+            CustomException.e401_unauthorized("No account found with this email.")
 
         # Token version check
         if token_version != user.token_version:
-            CustomException._401_unauthorized("Token has been invalidated. Please log in again.")
+            CustomException.e401_unauthorized("Token has been invalidated. Please log in again.")
 
         # Account status checks
         if not user.is_verified:
-            CustomException._403_forbidden("Your account is not verified.")
+            CustomException.e403_forbidden("Your account is not verified.")
 
         if user.is_deleted:
-            CustomException._403_forbidden("Your account is scheduled for deletion.")
+            CustomException.e403_forbidden("Your account is scheduled for deletion.")
 
         return user
 
     except Exception:
-        return CustomException._401_unauthorized("Could not validate credentials.")
+        return CustomException.e401_unauthorized("Could not validate credentials.")
