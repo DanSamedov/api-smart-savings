@@ -2,7 +2,6 @@
 
 import os
 from datetime import datetime, timezone
-import asyncio
 
 from sqlmodel import select
 

@@ -2,7 +2,6 @@
 
 from typing import Optional, Callable, Awaitable
 from enum import StrEnum
-import asyncio
 
 from fastapi import BackgroundTasks
 from fastapi_mail import FastMail, MessageSchema, MessageType
