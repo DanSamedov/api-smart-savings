@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/shell
 
 echo "[START SCRIPT] (i) Waiting for database to be ready..."
 while ! pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER

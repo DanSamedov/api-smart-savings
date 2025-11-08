@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/shell
 set -euo pipefail
 
 # wait for DB
