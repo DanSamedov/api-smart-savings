@@ -5,7 +5,7 @@ from typing import Optional
 from uuid import uuid4, UUID
 
 from sqlalchemy import Column, DateTime, func, Numeric, CheckConstraint, Enum as SQLEnum, text
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, SQLModel, Relationship, Boolean
 from app.modules.shared.enums import TransactionType, TransactionStatus
 
 class Wallet(SQLModel, table=True):
@@ -17,8 +17,10 @@ class Wallet(SQLModel, table=True):
     __tablename__ = "wallet"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    user_id: UUID = Field(foreign_key="app_user.id", unique=True)
+    user_id: Optional[UUID] = Field(default=None, foreign_key="app_user.id", unique=True)
     user: "User" = Relationship(back_populates="wallet")
+    is_anonymized: bool = Field(sa_column=Column(Boolean, server_default="false"))
+
     total_balance: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
     locked_amount: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
 
@@ -43,6 +45,8 @@ class ExchangeRate(SQLModel, table=True):
     __tablename__ = "exchange_rate"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    is_anonymized: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false")) # On user delete, set to True and remove user_id associations
+
     currency: Optional[str] = Field(default=None)
     rate_to_eur: float = Field(sa_column=Column(Numeric(20, 10), nullable=False))
 
@@ -67,6 +71,8 @@ class Transaction(SQLModel, table=True):
     __tablename__ = "transaction"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    is_anonymized: bool = Field(sa_column=Column(Boolean, server_default="false"))
+
     amount: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
     type: TransactionType = Field(sa_column=Column(SQLEnum(TransactionType, name="transaction_type_enum"), nullable=False))
     description: Optional[str] = None
@@ -83,7 +89,7 @@ class Transaction(SQLModel, table=True):
     wallet_id: UUID = Field(foreign_key="wallet.id", nullable=False)
     wallet: "Wallet" = Relationship(back_populates="transactions")
 
-    owner_id: UUID = Field(foreign_key="app_user.id", nullable=False)
+    owner_id: Optional[UUID] = Field(default=None, foreign_key="app_user.id")
     owner: "User" = Relationship(back_populates="transactions")
 
 from app.modules.user.models import User

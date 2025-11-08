@@ -20,7 +20,7 @@ class UserBase(SQLModel):
     is_verified: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
     is_enabled: bool =Field(sa_column=Column(Boolean, nullable=False, server_default="true"))
     is_deleted: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
-
+    is_anonymized: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
 
 class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
