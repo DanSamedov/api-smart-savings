@@ -6,11 +6,9 @@ from datetime import datetime, timezone, timedelta
 from fastapi import Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.middleware. logging import logger
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
-from app.modules.auth.schemas import VerificationCodeOnlyRequest
 from app.modules.email.service import EmailService
 from app.modules.shared.enums import EmailType
 from app.core.security.hashing import hash_password, verify_password, hash_ip

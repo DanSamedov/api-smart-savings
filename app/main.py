@@ -119,9 +119,6 @@ app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
 def root():
     """
     Base app endpoint.
-
-    Returns:
-        Dict[str, Any]: Standard response containing API status
     """
     return standard_response(status="success", message="API is live.")
 
