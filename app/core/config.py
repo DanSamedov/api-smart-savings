@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     IP_HASH_SALT: Optional[str] = None
     LOG_RETENTION_DAYS: Optional[int] = None
 
+    MIN_BALANCE_THRESHOLD: Optional[float] = None
+
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 

@@ -1,11 +1,13 @@
 # app/modules/gdpr/service.py
 
+from decimal import Decimal
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.middleware.logging import logger
 from app.core.security.hashing import hash_ip
 from app.core.utils.exceptions import CustomException
@@ -15,11 +17,13 @@ from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
 from app.modules.notifications.email.service import EmailNotificationService
 from app.modules.shared.enums import NotificationType
+from app.modules.wallet.repository import WalletRepository
 
 
 class GDPRService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
+        self.wallet_repo = WalletRepository(db)
         self.notification_service = EmailNotificationService()
 
     async def request_delete_account(
@@ -33,6 +37,12 @@ class GDPRService:
         Generates a time-limited verification code, updates the user record,
         and sends an email containing the verification code.
         """
+        wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
+        balance = Decimal(wallet.total_balance or 0)
+        threshold = Decimal(settings.MIN_BALANCE_THRESHOLD or 0)
+        if balance >= threshold:
+            raise CustomException.e400_bad_request("Please withdraw the remaining funds in your wallet before requesting account deletion.")
+
         if (
             current_user.verification_code
             and current_user.verification_code_expires_at

@@ -39,9 +39,9 @@ async def lifespan(app: FastAPI):
         # 1. Initialize test accounts if missing
         await init_test_accounts()
         # 2. Soft-delete test users 14 days ago for testing anonymization
-        await soft_delete_test_users(grace_days=14)
+        # await soft_delete_test_users(grace_days=14)
         # 3. Run anonymization immediately to verify
-        await anonymize_soft_deleted_users()
+        # await anonymize_soft_deleted_users()
 
     # --- General startup tasks ---
     cleanup_old_logs()  # Cleanup old log files
