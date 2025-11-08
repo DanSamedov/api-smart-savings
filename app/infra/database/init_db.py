@@ -12,12 +12,13 @@ from app.modules.gdpr.models import GDPRRequest
 from app.modules.shared.enums import Role
 
 from app.core.tasks import events # Imported to register the 'before_delete' event
+from app.modules.wallet.models import Wallet
 
 test_emails_str = os.getenv("TEST_EMAIL_ACCOUNTS")
 
 
 async def init_test_accounts():
-    """Initialize test accounts if they don't already exist."""
+    """Initialize test accounts if they don't already exist with wallets."""
     if not test_emails_str:
         print(
             "\n[DB INIT] (w) TEST_EMAIL_ACCOUNTS not set — skipping test account creation.",
@@ -25,9 +26,7 @@ async def init_test_accounts():
         )
         return
 
-    test_emails = [
-        email.strip() for email in test_emails_str.split(",") if email.strip()
-    ]
+    test_emails = [email.strip() for email in test_emails_str.split(",") if email.strip()]
     if not test_emails:
         print(
             "\n[DB INIT] (w) No valid test emails found in TEST_EMAIL_ACCOUNTS.",
@@ -36,6 +35,8 @@ async def init_test_accounts():
         return
 
     hashed_password = hash_password("Test@123")
+    users_to_add = []
+    wallets_to_add = []
 
     async with AsyncSessionLocal() as session:
         for i, email in enumerate(test_emails):
@@ -46,21 +47,39 @@ async def init_test_accounts():
             if existing_user:
                 print(f"[DB INIT] (i) Test user {email} already exists.", flush=True)
                 continue
+
             now = datetime.now(timezone.utc)
-            
             user = User(
                 email=email,
                 full_name=f"Test User {i+1}",
                 password_hash=hashed_password,
-                is_verified=True,
+                is_verified=True,  # wallet should exist immediately
                 role=Role.ADMIN if i == 0 else Role.USER,
                 created_at=now,
                 updated_at=now,
                 is_deleted=False,
             )
-            session.add(user)
+            users_to_add.append(user)
+
+        if not users_to_add:
+            print("[DB INIT] (i) All test users already exist.", flush=True)
+            return
+
+        # Add all users in one batch
+        session.add_all(users_to_add)
         await session.commit()
-        print(f"[DB INIT] (i) Created test accounts: {', '.join(test_emails)}", flush=True)
+
+        # Refresh users to get IDs for wallets
+        for user in users_to_add:
+            await session.refresh(user)
+            wallets_to_add.append(Wallet(user_id=user.id))
+
+        # Add all wallets in one batch
+        session.add_all(wallets_to_add)
+        await session.commit()
+
+        created_emails = [user.email for user in users_to_add]
+        print(f"[DB INIT] (i) Created test accounts: {', '.join(created_emails)}", flush=True)
 
 
 async def delete_test_accounts():
