@@ -62,9 +62,9 @@ class Transaction(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     amount: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
-    type: TransactionType = Field(default=None)
+    type: TransactionType = Field(sa_column=Column(SQLEnum(TransactionType, name="transaction_type_enum"), nullable=False))
     description: Optional[str] = None
-    status: TransactionStatus = Field(default=TransactionStatus.PENDING)
+    status: TransactionStatus = Field(sa_column=Column(SQLEnum(TransactionStatus, name="transaction_status_enum"), nullable=False, server_default=TransactionStatus.PENDING.value))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     executed_at: Optional[datetime] = Field(
         sa_column=Column(

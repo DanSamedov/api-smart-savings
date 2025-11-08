@@ -46,8 +46,9 @@ class User(UserBase, table=True):
     preferred_currency: Currency = Field(sa_column=Column(SQLEnum(Currency, name="currency_enum"), nullable=False, server_default=Currency.EUR.value))
     preferred_language: Optional[str] = None
 
+    gdpr_requests: list["GDPRRequest"] = Relationship(back_populates="user", cascade_delete=False)
     wallet: "Wallet" = Relationship(back_populates="user", sa_relationship_kwargs={"uselist": False})
-    transactions: "Transaction" = Relationship(back_populates="owner", cascade_delete=True)
+    transactions: list["Transaction"] = Relationship(back_populates="owner", cascade_delete=True)
 
     def __setattr__(self, name, value) -> None:
         """
@@ -62,6 +63,9 @@ class User(UserBase, table=True):
     def __post_init__(self):
         self._initialized = True
 
+
+from app.modules.gdpr.models import GDPRRequest
+from app.modules.wallet.models import Wallet
 from app.modules.wallet.models import Transaction
 
 User.model_rebuild()
