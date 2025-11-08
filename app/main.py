@@ -14,7 +14,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.dependencies import authenticate
 from app.api.routers import main_router
 from app.core.config import settings
-from app.core.cron.jobs import hard_delete_expired_users
+from app.core.tasks.cron_jobs import hard_delete_expired_users
 from app.core.middleware.logging import LoggingMiddleware, cleanup_old_logs
 from app.core.middleware.rate_limiter import limiter
 from app.infra.database.session import set_utc_timezone
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
     await set_utc_timezone() # Set DB server to UTC
     
-    # Initialize and start the scheduler for cron jobs
+    # Initialize and start the scheduler for tasks jobs
     scheduler = AsyncIOScheduler()
     cron_interval_hours = settings.HARD_DELETE_CRON_INTERVAL_HOURS
     

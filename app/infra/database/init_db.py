@@ -7,7 +7,11 @@ from sqlmodel import select
 
 from app.core.security.hashing import hash_password
 from app.infra.database.session import AsyncSessionLocal
-from app.modules.user.models import Role, User
+from app.modules.user.models import User
+from app.modules.gdpr.models import GDPRRequest
+from app.modules.shared.enums import Role
+
+from app.core.tasks import events # Imported to register the 'before_delete' event
 
 test_emails_str = os.getenv("TEST_EMAIL_ACCOUNTS")
 

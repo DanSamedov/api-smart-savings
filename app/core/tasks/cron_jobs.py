@@ -1,4 +1,4 @@
-# app/core/cron_jobs.py
+# app/core/tasks/cron_jobs.py
 
 import logging
 from datetime import datetime, timedelta, timezone
