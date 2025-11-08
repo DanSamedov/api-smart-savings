@@ -1,6 +1,7 @@
 # app/modules/email/sender.py
 
-from app.modules.email.service import EmailService, EmailType
+from app.modules.email.service import EmailService
+from app.modules.shared.enums import EmailType
 from app.core.utils.helpers import get_location_from_ip
 
 

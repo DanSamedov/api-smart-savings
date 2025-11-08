@@ -10,29 +10,12 @@ from jinja2 import Template
 from app.core.config import TEMPLATES_DIR, get_mail_config, settings
 from app.core.middleware.logging import logger
 from app.core.utils.helpers import mask_email
+from app.modules.shared.enums import EmailType
 
 mail_config = get_mail_config()
 fm = FastMail(mail_config)
 
 app_name = settings.APP_NAME
-
-
-class EmailType(StrEnum):
-    """Enum for valid email types"""
-
-    # Auth
-    WELCOME = "welcome"
-    VERIFICATION = "verification"
-    PASSWORD_RESET = "password_reset"
-    LOGIN_NOTIFICATION = "login_notification"
-    # Account
-    ACCOUNT_DELETION_REQUEST = "account_deletion_request"
-    ACCOUNT_DELETION_SCHEDULED = "account_deletion_scheduled"
-    ACCOUNT_LOCKED = "account_locked"
-    ACCOUNT_DISABLED = "account_disabled"
-    EMAIL_CHANGE_NOTIFICATION = "email_change_notification"
-    PASSWORD_RESET_NOTIFICATION = "password_reset_notification"
-    PASSWORD_CHANGE_NOTIFICATION = "password_change_notification"
 
 
 class EmailService:

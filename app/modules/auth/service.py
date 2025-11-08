@@ -19,7 +19,8 @@ from app.modules.auth.schemas import (
     VerifyEmailRequest,
 )
 from app.modules.user.repository import UserRepository
-from app.modules.email.service import EmailService, EmailType
+from app.modules.email.service import EmailService
+from app.modules.shared.enums import EmailType
 from app.modules.email.sender import EmailSender
 from app.core.utils.helpers import generate_secure_code, mask_email, transform_time, get_client_ip
 from app.core.utils.exceptions import CustomException

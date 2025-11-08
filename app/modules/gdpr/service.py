@@ -64,7 +64,7 @@ class GDPRService:
             background_tasks: Optional[BackgroundTasks] = None
     ) -> None:
         """
-        Verify the account deletion code and schedule the user's account for deletion (hard delete done by cron job).
+        Verify the account deletion code and schedule the user's account for deletion (hard delete done by tasks job).
         """
         # Log the deletion attempt
         raw_ip = get_client_ip(request)
