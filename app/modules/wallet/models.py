@@ -12,14 +12,15 @@ class Wallet(SQLModel, table=True):
     """
     Wallet model representing user wallets with currency and balance.
     Relationships:
-    - user_id: one-to-one relationship with User model.
+    - user_id: one-to-one relationship with a User model.
     """
     __tablename__ = "wallet"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="app_user.id", unique=True)
     user: "User" = Relationship(back_populates="wallet")
-    balance: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
+    total_balance: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
+    locked_amount: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(
@@ -31,6 +32,11 @@ class Wallet(SQLModel, table=True):
     )
 
     transactions: list["Transaction"] = Relationship(back_populates="wallet")
+
+    @property
+    def available_balance(self) -> float:
+        return float(self.total_balance) - float(self.locked_amount)
+
 
 class ExchangeRate(SQLModel, table=True):
     """Exchange rate model for currency conversion rates."""
