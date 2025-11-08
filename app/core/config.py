@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     TEST_EMAIL_ACCOUNTS: Optional[str] = None
 
     ALLOWED_ORIGINS: Optional[str] = None
+    FRONTEND_URL: Optional[str] = None
 
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = None

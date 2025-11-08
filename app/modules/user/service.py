@@ -9,16 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
-from app.modules.email.service import EmailService
-from app.modules.shared.enums import EmailType
-from app.core.security.hashing import hash_password, verify_password, hash_ip
-from app.core.utils.helpers import generate_secure_code, get_client_ip
+from app.modules.notifications.email.service import EmailNotificationService
+from app.modules.shared.enums import NotificationType
+from app.core.security.hashing import hash_password, verify_password
+from app.core.utils.helpers import generate_secure_code
 from app.modules.user.repository import UserRepository
 
 
 class UserService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
+        self.email_service = EmailNotificationService()
 
     @staticmethod
     async def get_user_details(current_user: User) -> dict[str, Any]:
@@ -41,7 +42,7 @@ class UserService:
     
     async def update_user_details(self, update_request: UserUpdate, current_user: User) -> dict[str, str]:
         """
-        Partially update currently authenticated user if any changes are provided.
+        Partially update the currently authenticated user if any changes are provided.
         """
         update_data = update_request.model_dump(exclude_unset=True)
         # Early return if nothing to update
@@ -50,8 +51,7 @@ class UserService:
         
         # Fetch the user (exists by JWT, so no need to validate existence)
         user = await self.user_repo.get_by_email(current_user.email)
-        
-        # Update only fields that were provided
+
         await self.user_repo.update(user, update_data)
         
         return {"message": "User details updated successfully."}
@@ -74,11 +74,11 @@ class UserService:
         )
 
         # Send password change notification email
-        await EmailService.schedule_email(
-            EmailService.send_templated_email,
+        await self.email_service.schedule(
+            self.email_service.send,
             background_tasks=background_tasks,
-            email_type=EmailType.PASSWORD_CHANGE_NOTIFICATION,
-            email_to=[current_user.email]
+            notification_type=NotificationType.PASSWORD_CHANGE_NOTIFICATION,
+            recipients=[current_user.email],
         )
 
     @staticmethod
@@ -130,7 +130,6 @@ class UserService:
         verification_code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-        # Update user record through repository
         updates = {
             "email": new_email,
             "is_verified": False,
@@ -142,10 +141,10 @@ class UserService:
         await self.user_repo.update(current_user, updates)
 
         # Send verification email
-        await EmailService.schedule_email(
-            EmailService.send_templated_email,
+        await self.email_service.schedule(
+            self.email_service.send,
             background_tasks=background_tasks,
-            email_type=EmailType.EMAIL_CHANGE_NOTIFICATION,
-            email_to=[new_email]
+            notification_type=NotificationType.EMAIL_CHANGE_NOTIFICATION,
+            recipients=[new_email]
         )
 

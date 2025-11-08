@@ -113,7 +113,7 @@ async def change_user_email(
     Change the email address for the currently authenticated user.
 
     Updates the user's email address to a new one. Requires the new email address
-    and the current password for verification. The new email must not be already in
+    and the current password for verification. The new email must not be yet in
     use by another account. After updating, the account will be marked as unverified,
     all existing authentication tokens will be invalidated, and a verification code
     will be sent to the new email address for confirmation.

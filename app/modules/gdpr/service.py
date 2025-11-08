@@ -11,27 +11,32 @@ from app.core.security.hashing import hash_ip
 from app.core.utils.exceptions import CustomException
 from app.core.utils.helpers import get_client_ip, generate_secure_code
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
-from app.modules.email.service import EmailService, EmailType
 from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
+from app.modules.notifications.email.service import EmailNotificationService
+from app.modules.shared.enums import NotificationType
 
 
 class GDPRService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
+        self.notification_service = EmailNotificationService()
 
-    async def request_delete_account(self, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:
+    async def request_delete_account(
+        self,
+        current_user: User,
+        background_tasks: Optional[BackgroundTasks] = None,
+    ) -> None:
         """
         Initiate the account deletion process for the current user.
 
         Generates a time-limited verification code, updates the user record,
         and sends an email containing the verification code.
         """
-        # Prevent multiple active deletion requests (if applicable)
         if (
-                current_user.verification_code
-                and current_user.verification_code_expires_at
-                and current_user.verification_code_expires_at > datetime.now(timezone.utc)
+            current_user.verification_code
+            and current_user.verification_code_expires_at
+            and current_user.verification_code_expires_at > datetime.now(timezone.utc)
         ):
             raise CustomException.e400_bad_request(
                 "Account deletion already requested. Please wait until the previous code expires."
@@ -48,25 +53,25 @@ class GDPRService:
             },
         )
 
-        await EmailService.schedule_email(
-            EmailService.send_templated_email,
+        # Send deletion verification email
+        await self.notification_service.schedule(
+            self.notification_service.send,
             background_tasks=background_tasks,
-            email_type=EmailType.ACCOUNT_DELETION_REQUEST,
-            email_to=[current_user.email],
-            verification_code=code
+            notification_type=NotificationType.ACCOUNT_DELETION_REQUEST,
+            recipients=[current_user.email],
+            context={"verification_code": code},
         )
 
     async def schedule_account_delete(
-            self,
-            request: Request,
-            current_user: User,
-            deletion_request: VerificationCodeOnlyRequest,
-            background_tasks: Optional[BackgroundTasks] = None
+        self,
+        request: Request,
+        current_user: User,
+        deletion_request: VerificationCodeOnlyRequest,
+        background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         """
         Verify the account deletion code and schedule the user's account for deletion (hard delete done by tasks job).
         """
-        # Log the deletion attempt
         raw_ip = get_client_ip(request)
         ip = hash_ip(raw_ip)
 
@@ -80,27 +85,22 @@ class GDPRService:
             },
         )
 
-        # Guard: already scheduled
         if current_user.is_deleted:
             raise CustomException.e409_conflict("Account is already scheduled for deletion.")
 
-        # Validate verification code
         ver_code = deletion_request.verification_code
         expires_at = current_user.verification_code_expires_at
 
-        # Normalize timezone
         if expires_at and expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-        # Invalid or expired code
         if (
-                current_user.verification_code != ver_code
-                or not current_user.verification_code_expires_at
-                or expires_at < datetime.now(timezone.utc)
+            current_user.verification_code != ver_code
+            or not current_user.verification_code_expires_at
+            or expires_at < datetime.now(timezone.utc)
         ):
             raise CustomException.e400_bad_request("Invalid or expired verification code.")
 
-        # Update user via repository
         updates = {
             "is_deleted": True,
             "deleted_at": datetime.now(timezone.utc),
@@ -109,17 +109,23 @@ class GDPRService:
         }
         await self.user_repo.update(current_user, updates)
 
-        # Send confirmation email
-        await EmailService.schedule_email(
-            EmailService.send_templated_email,
+        # Send a scheduled deletion confirmation email
+        await self.notification_service.schedule(
+            self.notification_service.send,
             background_tasks=background_tasks,
-            email_type=EmailType.ACCOUNT_DELETION_SCHEDULED,
-            email_to=[current_user.email]
+            notification_type=NotificationType.ACCOUNT_DELETION_SCHEDULED,
+            recipients=[current_user.email],
         )
 
-    # =========== TODO ===========
-    async def request_data_export(self, request: Request, current_user: User,
-                                background_tasks: Optional[BackgroundTasks] = None) -> None:
+    async def request_data_export(
+        self,
+        request: Request,
+        current_user: User,
+        background_tasks: Optional[BackgroundTasks] = None,
+    ) -> None:
+        """
+        Handle GDPR data export request — logs, verifies user, and schedules data export job.
+        """
         raw_ip = get_client_ip(request=request)
         ip = hash_ip(raw_ip)
 
@@ -132,5 +138,7 @@ class GDPRService:
                 "path": "/v1/user/gdpr-request",
                 "status_code": 202,
                 "ip_anonymized": ip,
+                "email": user.email,
             },
         )
+
