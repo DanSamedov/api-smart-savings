@@ -26,10 +26,11 @@ class TransactionStatus(str, Enum):
     FAILED = "FAILED"
 
 class Role(str, Enum):
-    """Enumeration of user roles with increasing privileges."""
+    """Enumeration of user roles."""
     USER = "USER"
     ADMIN = "ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
+    DELETED_USER = "DELETED_USER"
 
 class GDPRRequestType(str, Enum):
     """Enumeration of GDPR Request statuses."""

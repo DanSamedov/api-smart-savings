@@ -1,5 +1,5 @@
 # app/main.py
-
+import asyncio
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -14,11 +14,11 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.dependencies import authenticate
 from app.api.routers import main_router
 from app.core.config import settings
-from app.core.tasks.cron_jobs import hard_delete_expired_users
+from app.core.tasks.cron_jobs import anonymize_soft_deleted_users
 from app.core.middleware.logging import LoggingMiddleware, cleanup_old_logs
 from app.core.middleware.rate_limiter import limiter
 from app.infra.database.session import set_utc_timezone
-from app.infra.database.init_db import delete_test_accounts, init_test_accounts
+from app.infra.database.init_db import init_test_accounts, soft_delete_test_users
 from app.core.utils import error_handlers
 from app.core.utils.response import standard_response
 
@@ -28,32 +28,48 @@ from app.core.utils.response import standard_response
 # =======================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup Events
+    """
+    FastAPI lifespan context:
+    - Startup: initialize test accounts (dev), soft-delete simulation, set timezone, start scheduler
+    - Shutdown: stop scheduler
+    """
     print(f"[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
+    # --- Development: setup test users ---
     if settings.APP_ENV == "development":
+        # 1. Initialize test accounts if missing
         await init_test_accounts()
-    cleanup_old_logs() # Cleanup old log files
+        # 2. Soft-delete test users 14 days ago for testing anonymization
+        await soft_delete_test_users(grace_days=14)
+        # 3. Run anonymization immediately to verify
+        await anonymize_soft_deleted_users()
 
-    await set_utc_timezone() # Set DB server to UTC
-    
-    # Initialize and start the scheduler for tasks jobs
+    # --- General startup tasks ---
+    cleanup_old_logs()  # Cleanup old log files
+    await set_utc_timezone()  # Ensure DB session uses UTC timezone
+
+    # --- Scheduler for production / recurring jobs ---
     scheduler = AsyncIOScheduler()
-    cron_interval_hours = settings.HARD_DELETE_CRON_INTERVAL_HOURS
-    
+    async def run_anonymize_job():
+        await anonymize_soft_deleted_users()
     scheduler.add_job(
-        hard_delete_expired_users,
-        "interval",
-        hours=cron_interval_hours,
-        id="hard_delete_expired_users",
+        lambda: asyncio.create_task(run_anonymize_job()),
+        trigger="interval",
+        hours=settings.HARD_DELETE_CRON_INTERVAL_HOURS,
+        id="anonymize_soft_deleted_users",
         replace_existing=True,
     )
     scheduler.start()
-    print(f"[STARTUP INFO] (i) Hard delete cron job scheduled to run every {cron_interval_hours} hour(s)\n", flush=True)
+    print(
+        f"[STARTUP INFO] (i) User anonymization cron job scheduled every "
+        f"{settings.HARD_DELETE_CRON_INTERVAL_HOURS} hour(s)\n", flush=True
+    )
 
-    yield  # App Runs
+    # --- Yield control to app ---
+    yield
 
-    # Shutdown Events
+    # --- Shutdown tasks ---
     scheduler.shutdown()
+    print("[SHUTDOWN INFO] Scheduler shut down\n", flush=True)
 
 
 # =======================================

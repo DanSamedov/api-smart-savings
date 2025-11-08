@@ -1,7 +1,7 @@
 # app/infra/database/init_db.py
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlmodel import select
 
@@ -81,33 +81,23 @@ async def init_test_accounts():
         created_emails = [user.email for user in users_to_add]
         print(f"[DB INIT] (i) Created test accounts: {', '.join(created_emails)}", flush=True)
 
-
-async def delete_test_accounts():
-    """Delete test accounts defined in TEST_EMAIL_ACCOUNTS."""
+async def soft_delete_test_users(grace_days: int = 0):
+    """
+    Marks test users as soft-deleted for testing.
+    Optionally, backdates deleted_at to test 14-day anonymization.
+    """
+    test_emails_str = os.getenv("TEST_EMAIL_ACCOUNTS")
     if not test_emails_str:
         return
 
-    test_emails = [
-        email.strip() for email in test_emails_str.split(",") if email.strip()
-    ]
-    if not test_emails:
-        return
-
+    test_emails = [email.strip() for email in test_emails_str.split(",") if email.strip()]
     async with AsyncSessionLocal() as session:
         for email in test_emails:
             stmt = select(User).where(User.email == email)
             result = await session.execute(stmt)
             user = result.scalar_one_or_none()
             if user:
-                await session.delete(user)
+                user.is_deleted = True
+                user.deleted_at = datetime.now(timezone.utc) - timedelta(days=grace_days)
+                session.add(user)
         await session.commit()
-        print(
-            f"[DB INIT - SHUTDOWN] (i) Deleted test accounts: {', '.join(test_emails)}",
-            flush=True,
-        )
-        print()
-
-
-# # Optional helper to run outside FastAPI
-# if __name__ == "__main__":
-#     asyncio.run(init_test_accounts())
