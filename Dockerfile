@@ -17,6 +17,6 @@ COPY ./scripts ./scripts
 COPY ./migrations ./migrations
 COPY ./alembic.ini .
 
-RUN chmod +x ./scripts/start.sh ./scripts/start-dev.sh
+RUN chmod +x ./scripts/shell/start.sh ./scripts/shell/start-dev.sh
 
-CMD ["bash", "./scripts/start.sh"]
+CMD ["bash", "./scripts/shell/start.sh"]

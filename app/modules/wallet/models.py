@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4, UUID
 
-from sqlalchemy import Column, DateTime, func, Numeric, CheckConstraint, Enum as SQLEnum
+from sqlalchemy import Column, DateTime, func, Numeric, CheckConstraint, Enum as SQLEnum, text
 from sqlmodel import Field, SQLModel, Relationship
 from app.modules.shared.enums import TransactionType, TransactionStatus
 
@@ -19,10 +19,10 @@ class Wallet(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="app_user.id", unique=True)
     user: "User" = Relationship(back_populates="wallet")
-    total_balance: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
-    locked_amount: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
+    total_balance: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
+    locked_amount: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
@@ -71,7 +71,7 @@ class Transaction(SQLModel, table=True):
     type: TransactionType = Field(sa_column=Column(SQLEnum(TransactionType, name="transaction_type_enum"), nullable=False))
     description: Optional[str] = None
     status: TransactionStatus = Field(sa_column=Column(SQLEnum(TransactionStatus, name="transaction_status_enum"), nullable=False, server_default=TransactionStatus.PENDING.value))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
     executed_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),

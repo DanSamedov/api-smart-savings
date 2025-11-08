@@ -1,4 +1,4 @@
 # =========== NOTE: For development only ===========
 services:
   api:
-    command: ["bash", "./scripts/start-dev.sh"]
+    command: ["bash", "./scripts/shell/start-dev.sh"]
