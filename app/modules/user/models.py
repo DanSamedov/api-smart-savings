@@ -48,11 +48,11 @@ class User(UserBase, table=True):
 
     gdpr_requests: list["GDPRRequest"] = Relationship(back_populates="user", cascade_delete=False)
     wallet: "Wallet" = Relationship(back_populates="user", sa_relationship_kwargs={"uselist": False})
-    transactions: list["Transaction"] = Relationship(back_populates="owner", cascade_delete=True)
+    transactions: list["Transaction"] = Relationship(back_populates="owner", cascade_delete=False)
 
     def __setattr__(self, name, value) -> None:
         """
-        Prevent update for `created_at` field.
+        Prevent update for the ` created_at ` field.
         NOTE: Ultimate protection should be enforced in the DB.
         """
         # Allow setting 'created_at' during initialization

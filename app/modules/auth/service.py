@@ -24,11 +24,14 @@ from app.modules.shared.enums import EmailType
 from app.modules.email.sender import EmailSender
 from app.core.utils.helpers import generate_secure_code, mask_email, transform_time, get_client_ip
 from app.core.utils.exceptions import CustomException
+from app.modules.wallet.models import Wallet
+from app.modules.wallet.repository import WalletRepository
 
 
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
+        self.wallet_repo = WalletRepository(db)
 
     async def register_new_user(
         self,
@@ -79,7 +82,8 @@ class AuthService:
         background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         """
-        Verify a user's email address using a verification code.
+        Verify a user's email address using a verification code,
+        then create a wallet for the user after successful verification.
         """
         # Fetch user
         user = await self.user_repo.get_by_email_or_none(str(verify_email_request.email))
@@ -111,7 +115,11 @@ class AuthService:
         }
         await self.user_repo.update(user, updates)
 
-        # Send welcome email
+        # Create wallet for user
+        wallet = Wallet(user_id=user.id)
+        await self.wallet_repo.create(wallet)
+
+        # Send a welcome email
         await EmailService.schedule_email(
             EmailService.send_templated_email,
             background_tasks=background_tasks,

@@ -61,9 +61,8 @@ async def verify_email(
 ) -> dict[str, Any]:
     """
     Endpoint to verify a user's email address.
-
     Accepts the user's email and verification code, verifies the code,
-    and activates the user account. Returns a success message upon completion.
+    activates the user account, and creates a wallet for the user. Returns a success message upon completion.
 
     Args:
         verify_email_request (VerifyEmailRequest): User's email and verification code.
@@ -98,7 +97,7 @@ async def resend_verification(
     """
     Resend verification code to a user's email address.
 
-    Accepts user's email, generates a new verification code, and sends it
+    Accepts a user's email, generates a new verification code, and sends it
     via email. Can be used when the original verification code has expired
     or was not received.
 
@@ -134,7 +133,7 @@ async def reset_password(
     db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """
-    Reset user's password using a valid reset token.
+    Reset a user's password using a valid reset token.
 
     Takes a reset token (from the reset email) and a new password.
     Validates the token, updates the password, and sends a confirmation email.
@@ -173,7 +172,7 @@ async def request_password_reset(
     """
     Request a password reset email.
 
-    Accepts user's email, generates a password reset token, and sends
+    Accepts a user's email, generates a password reset token, and sends
     a reset link via email. The reset link will be valid for a limited time.
 
     Args:
