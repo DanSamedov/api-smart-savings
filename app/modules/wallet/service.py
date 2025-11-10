@@ -15,7 +15,7 @@ from app.modules.shared.enums import TransactionType, TransactionStatus
 from app.modules.notifications.email.service import EmailNotificationService
 from app.modules.shared.enums import NotificationType
 
-
+# TODO: refactor - duplicated code in deposit and withdrawal
 class WalletService:
     """Service for handling wallet operations including deposits and withdrawals."""
 

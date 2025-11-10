@@ -84,11 +84,11 @@ async def schedule_account_deletion(
 
 @router.post("/request-data-export", status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("2/hour")
-async def request_user_data_gdpr(request: Request, background_tasks: BackgroundTasks,
+async def request_data_export(request: Request, background_tasks: BackgroundTasks,
                                  current_user: User = Depends(get_current_user),
                                  db: AsyncSession = Depends(get_session)) -> dict[str, Any]:
     gdpr_service = GDPRService(db)
-    await gdpr_service.request_data_export(request=request, current_user=current_user)
+    await gdpr_service.request_export_of_data(request=request, current_user=current_user)
 
     return standard_response(
         status="success",

@@ -127,7 +127,7 @@ class GDPRService:
             recipients=[current_user.email],
         )
 
-    async def request_data_export(
+    async def request_export_of_data(
         self,
         request: Request,
         current_user: User,
