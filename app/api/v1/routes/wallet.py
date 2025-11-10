@@ -92,7 +92,7 @@ async def withdraw(
 
     return standard_response(
         status="success",
-        message="Withdrawal completed successfully.",
+        message="Withdrawal request completed successfully.",
         data=result,
     )
 

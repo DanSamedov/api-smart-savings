@@ -25,16 +25,16 @@ class Settings(BaseSettings):
     DOCS_PASSWORD: Optional[str] = None
 
     TEST_EMAIL_ACCOUNTS: Optional[str] = None
-
+    # URLs
     ALLOWED_ORIGINS: Optional[str] = None
     FRONTEND_URL: Optional[str] = None
-
+    # DATABASE
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = None
     POSTGRES_USER: Optional[str] = None
     POSTGRES_PASSWORD: Optional[str] = None
     POSTGRES_DB: Optional[str] = None
-
+    # SECURITY
     JWT_SECRET_KEY: Optional[str] = None
     JWT_EXPIRATION_TIME: Optional[int] = None
     JWT_SIGNING_ALGORITHM: Optional[str] = None
@@ -42,9 +42,11 @@ class Settings(BaseSettings):
     MAX_FAILED_LOGIN_ATTEMPTS: Optional[int] = None
     IP_HASH_SALT: Optional[str] = None
     LOG_RETENTION_DAYS: Optional[int] = None
-
+    # AMOUNTS
     MIN_BALANCE_THRESHOLD: Optional[float] = None
-
+    MIN_WALLET_DEPOSIT_AMOUNT: Optional[float] = None
+    MIN_WALLET_WITHDRAWAL_AMOUNT: Optional[float] = None
+    # GOOGLE
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
@@ -52,7 +54,7 @@ class Settings(BaseSettings):
     SMTP_PORT: Optional[int] = None
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-
+    # SCHEDULE
     HARD_DELETE_RETENTION_DAYS: Optional[int] = 14
     HARD_DELETE_CRON_INTERVAL_HOURS: Optional[int] = 24
 

@@ -1,11 +1,11 @@
 # app/modules/wallet/service.py
 
 from typing import Any, Optional
-from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.modules.wallet.models import Wallet, Transaction
@@ -20,7 +20,6 @@ class WalletService:
     """Service for handling wallet operations including deposits and withdrawals."""
 
     def __init__(self, db: AsyncSession):
-        self.db = db
         self.wallet_repo = WalletRepository(db)
         self.transaction_repo = TransactionRepository(db)
         self.email_service = EmailNotificationService()
@@ -43,14 +42,14 @@ class WalletService:
 
         Returns:
             dict[str, Any]: Dictionary containing updated balance and transaction details.
-
-        Raises:
-            HTTPException: 404 Not Found if the user's wallet does not exist.
-            HTTPException: 400 Bad Request if the amount is invalid.
         """
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
         if not wallet:
             raise CustomException.e404_not_found("Wallet not found. Please contact support.")
+
+        min_deposit = settings.MIN_WALLET_DEPOSIT_AMOUNT
+        if transaction_request.amount < min_deposit:
+            raise CustomException.e400_bad_request(f"Minimum deposit amount is {min_deposit} {current_user.preferred_currency}")
 
         new_balance = float(wallet.total_balance) + float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
@@ -120,14 +119,13 @@ class WalletService:
 
         Returns:
             dict[str, Any]: Dictionary containing updated balance and transaction details.
-
-        Raises:
-            HTTPException: 404 Not Found if the user's wallet does not exist.
-            HTTPException: 400 Bad Request if the amount is invalid or insufficient funds.
         """
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
         if not wallet:
             raise CustomException.e404_not_found("Wallet not found. Please contact support.")
+        min_withdrawal = settings.MIN_WALLET_WITHDRAWAL_AMOUNT
+        if transaction_request.amount < min_withdrawal:
+            raise CustomException.e400_bad_request(f"Minimum withdrawal amount is {min_withdrawal} {current_user.preferred_currency}")
 
         available_balance = wallet.available_balance
         if available_balance < float(transaction_request.amount):

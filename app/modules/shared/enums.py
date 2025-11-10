@@ -9,6 +9,8 @@ class Currency(str, Enum):
     PLN = "PLN"
     GBP = "GBP"
     CAD = "CAD"
+    # Application base currency
+    BASE_CURRENCY = EUR
 
 class TransactionType(str, Enum):
     """Enumeration of transaction types."""
