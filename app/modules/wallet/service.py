@@ -1,28 +1,80 @@
 # app/modules/wallet/service.py
-
 from typing import Any, Optional
 
 from fastapi import BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.middleware.logging import logger
 from app.core.utils.exceptions import CustomException
+from app.core.utils.helpers import transform_time
 from app.modules.user.models import User
-from app.modules.wallet.models import Wallet, Transaction
-from app.modules.wallet.repository import WalletRepository, TransactionRepository
+from app.modules.wallet.models import Transaction
 from app.modules.wallet.schemas import TransactionRequest
 from app.modules.shared.enums import TransactionType, TransactionStatus
-from app.modules.notifications.email.service import EmailNotificationService
 from app.modules.shared.enums import NotificationType
 
-# TODO: refactor - duplicated code in deposit and withdrawal
+
 class WalletService:
     """Service for handling wallet operations including deposits and withdrawals."""
 
-    def __init__(self, db: AsyncSession):
-        self.wallet_repo = WalletRepository(db)
-        self.transaction_repo = TransactionRepository(db)
-        self.email_service = EmailNotificationService()
+    def __init__(self, wallet_repo, transaction_repo, notification_manager):
+        self.wallet_repo = wallet_repo
+        self.transaction_repo = transaction_repo
+        self.notification_manager = notification_manager
+
+    async def _record_transaction(self, wallet, user, amount, tx_type):
+        transaction = Transaction(
+            amount=float(amount),
+            type=tx_type,
+            status=TransactionStatus.COMPLETED,
+            wallet_id=wallet.id,
+            owner_id=user.id,
+        )
+        return await self.transaction_repo.create(transaction)
+
+    async def _send_wallet_io_notification(self, current_user, wallet, transaction_request, transaction, background_tasks):
+        try:
+            full_name = current_user.full_name if current_user.full_name is not None else ""
+            currency = transaction_request.currency.value if transaction_request.currency is not None else current_user.preferred_currency
+
+            context = {
+                "full_name": full_name,
+                "transaction_id": str(transaction.id),
+                "transaction_amount": f"{float(transaction.amount):,.2f}".rstrip('0').rstrip('.'),
+                "transaction_date": transform_time(transaction.created_at),
+                "updated_balance": f"{float(wallet.total_balance):,.2f}".rstrip('0').rstrip('.'),
+                "currency": currency,
+            }
+
+            notification_type = {
+                TransactionType.WALLET_DEPOSIT: NotificationType.WALLET_DEPOSIT_NOTIFICATION,
+                TransactionType.WALLET_WITHDRAWAL: NotificationType.WALLET_WITHDRAWAL_NOTIFICATION,
+            }.get(transaction.type)
+
+            if notification_type:
+                await self.notification_manager.schedule(
+                    self.notification_manager.send,
+                    background_tasks=background_tasks,
+                    notification_type=notification_type,
+                    recipients=[current_user.email],
+                    context=context,
+                )
+        except Exception as e:
+            logger.error("Wallet I/O notification failed", exc_info=e)
+
+    def _generate_transaction_response(self, wallet, transaction):
+        return {
+            "balance": float(wallet.total_balance),
+            "available_balance": wallet.available_balance,
+            "transaction": {
+                "id": str(transaction.id),
+                "amount": float(transaction.amount),
+                "type": transaction.type.value,
+                "status": transaction.status.value,
+                "created_at": transaction.created_at.isoformat(),
+                "executed_at": transaction.executed_at.isoformat() if transaction.executed_at else None,
+            }
+        }
 
     async def deposit(
         self,
@@ -54,51 +106,10 @@ class WalletService:
         new_balance = float(wallet.total_balance) + float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
 
-        transaction = Transaction(
-            amount=float(transaction_request.amount),
-            type=TransactionType.WALLET_DEPOSIT,
-            status=TransactionStatus.COMPLETED,
-            wallet_id=wallet.id,
-            owner_id=current_user.id,
-        )
+        transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_DEPOSIT)
 
-        transaction = await self.transaction_repo.create(transaction)
-
-        try:
-            full_name = current_user.full_name if current_user.full_name is not None else ""
-            currency = transaction_request.currency.value if transaction_request.currency is not None else getattr(current_user, "preferred_currency", "")
-
-            context = {
-                "full_name": full_name,
-                "transaction_id": str(transaction.id),
-                "transaction_amount": f"{float(transaction.amount):.4f}",
-                "transaction_date": transaction.created_at.isoformat(),
-                "updated_balance": f"{float(wallet.total_balance):.4f}",
-                "currency": currency,
-            }
-
-            await self.email_service.schedule(
-                self.email_service.send,
-                background_tasks=background_tasks,
-                notification_type=NotificationType.WALLET_DEPOSIT_NOTIFICATION,
-                recipients=[current_user.email],
-                context=context,
-            )
-        except Exception:
-            pass
-
-        return {
-            "balance": float(wallet.total_balance),
-            "available_balance": wallet.available_balance,
-            "transaction": {
-                "id": str(transaction.id),
-                "amount": float(transaction.amount),
-                "type": transaction.type.value,
-                "status": transaction.status.value,
-                "created_at": transaction.created_at.isoformat(),
-                "executed_at": transaction.executed_at.isoformat() if transaction.executed_at else None,
-            },
-        }
+        await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
+        return self._generate_transaction_response(wallet, transaction)
 
     async def withdraw(
         self,
@@ -121,8 +132,10 @@ class WalletService:
             dict[str, Any]: Dictionary containing updated balance and transaction details.
         """
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
+
         if not wallet:
             raise CustomException.e404_not_found("Wallet not found. Please contact support.")
+
         min_withdrawal = settings.MIN_WALLET_WITHDRAWAL_AMOUNT
         if transaction_request.amount < min_withdrawal:
             raise CustomException.e400_bad_request(f"Minimum withdrawal amount is {min_withdrawal} {current_user.preferred_currency}")
@@ -135,49 +148,7 @@ class WalletService:
 
         new_balance = float(wallet.total_balance) - float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
+        transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_WITHDRAWAL)
 
-        transaction = Transaction(
-            amount=float(transaction_request.amount),
-            type=TransactionType.WALLET_WITHDRAWAL,
-            status=TransactionStatus.COMPLETED,
-            wallet_id=wallet.id,
-            owner_id=current_user.id,
-        )
-
-        transaction = await self.transaction_repo.create(transaction)
-
-        try:
-            full_name = current_user.full_name if current_user.full_name is not None else ""
-            currency = transaction_request.currency.value if transaction_request.currency is not None else getattr(current_user, "preferred_currency", "")
-
-            context = {
-                "full_name": full_name,
-                "transaction_id": str(transaction.id),
-                "transaction_amount": f"{float(transaction.amount):.4f}",
-                "transaction_date": transaction.created_at.isoformat(),
-                "updated_balance": f"{float(wallet.total_balance):.4f}",
-                "currency": currency,
-            }
-
-            await self.email_service.schedule(
-                self.email_service.send,
-                background_tasks=background_tasks,
-                notification_type=NotificationType.WALLET_WITHDRAWAL_NOTIFICATION,
-                recipients=[current_user.email],
-                context=context,
-            )
-        except Exception:
-            pass
-
-        return {
-            "balance": float(wallet.total_balance),
-            "available_balance": wallet.available_balance,
-            "transaction": {
-                "id": str(transaction.id),
-                "amount": float(transaction.amount),
-                "type": transaction.type.value,
-                "status": transaction.status.value,
-                "created_at": transaction.created_at.isoformat(),
-                "executed_at": transaction.executed_at.isoformat() if transaction.executed_at else None,
-            },
-        }
+        await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
+        return self._generate_transaction_response(wallet, transaction)

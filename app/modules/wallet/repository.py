@@ -52,7 +52,7 @@ class TransactionRepository:
         await self.db.refresh(transaction)
         return transaction
 
-    async def get_by_id(self, id: UUID) -> Optional[Transaction]:
-        stmt = select(Transaction).where(Transaction.id == id)
+    async def get_by_id(self, trans_id: UUID) -> Optional[Transaction]:
+        stmt = select(Transaction).where(Transaction.id == trans_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
