@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.middleware.rate_limiter import limiter
 from app.infra.database.session import get_session
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_auth_service
 from app.modules.auth.schemas import (EmailOnlyRequest, LoginRequest,
                                       RegisterRequest, ResetPasswordRequest,
                                       VerifyEmailRequest)
@@ -24,7 +24,7 @@ async def register(
     request: Request,
     register_request: RegisterRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Register a new user account.
@@ -42,7 +42,6 @@ async def register(
         HTTPException: 409 Conflict if the email is already registered.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    auth_service = AuthService(db)
     await auth_service.register_new_user(register_request=register_request, background_tasks=background_tasks)
 
     return standard_response(
@@ -57,7 +56,7 @@ async def verify_email(
     request: Request,
     verify_email_request: VerifyEmailRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Endpoint to verify a user's email address.
@@ -76,7 +75,6 @@ async def verify_email(
         HTTPException: 400 Bad Request if the verification code is invalid or expired.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    auth_service = AuthService(db)
     await auth_service.verify_user_email(
         verify_email_request=verify_email_request, background_tasks=background_tasks
     )
@@ -92,7 +90,7 @@ async def resend_verification(
     request: Request,
     email_request: EmailOnlyRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Resend verification code to a user's email address.
@@ -112,7 +110,6 @@ async def resend_verification(
         HTTPException: 409 Conflict if the account is already verified.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    auth_service = AuthService(db)
     await auth_service.resend_verification_code(
         email_only_req=email_request,
         background_tasks=background_tasks
@@ -131,6 +128,7 @@ async def reset_password(
     reset_request: ResetPasswordRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Reset a user's password using a valid reset token.
@@ -149,7 +147,6 @@ async def reset_password(
         HTTPException: 404 Not Found if user does not exist
         HTTPException: 429 Too Many Requests if rate limit is exceeded
     """
-    auth_service = AuthService(db)
     await auth_service.reset_password(
         reset_request=reset_request,
         background_tasks=background_tasks
@@ -167,7 +164,7 @@ async def request_password_reset(
     request: Request,
     email_request: EmailOnlyRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Request a password reset email.
@@ -185,7 +182,6 @@ async def request_password_reset(
         HTTPException: 404 Not Found if the user account does not exist.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    auth_service = AuthService(db)
     await auth_service.request_password_reset(
         email_only_req=email_request,
         background_tasks=background_tasks
@@ -202,7 +198,7 @@ async def request_password_reset(
 async def logout_all_devices(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Logout from all devices by invalidating all existing tokens.
@@ -217,7 +213,6 @@ async def logout_all_devices(
         HTTPException: 401 Unauthorized if not authenticated
         HTTPException: 429 Too Many Requests if rate limit exceeded
     """
-    auth_service = AuthService(db)
     await auth_service.logout_all_devices(
         user=current_user
     )
@@ -234,7 +229,7 @@ async def login(
     request: Request,
     login_request: LoginRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
     """
     Authenticate a user and issue an access token.
@@ -254,7 +249,6 @@ async def login(
         HTTPException: 403 Forbidden after several invalid login attempts.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    auth_service = AuthService(db)
     response = await auth_service.login_existing_user(
         request=request, login_request=login_request, background_tasks=background_tasks
     )

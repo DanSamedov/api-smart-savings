@@ -4,22 +4,18 @@ from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import Request, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
-from app.modules.notifications.email.service import EmailNotificationService
 from app.modules.shared.enums import NotificationType
 from app.core.security.hashing import hash_password, verify_password
 from app.core.utils.helpers import generate_secure_code
-from app.modules.user.repository import UserRepository
 
 
 class UserService:
-    def __init__(self, db: AsyncSession):
-        self.user_repo = UserRepository(db)
-        self.email_service = EmailNotificationService()
+    def __init__(self, user_repo, notification_manager):
+        self.user_repo = user_repo
+        self.notification_manager = notification_manager
 
     @staticmethod
     async def get_user_details(current_user: User) -> dict[str, Any]:
@@ -74,8 +70,8 @@ class UserService:
         )
 
         # Send password change notification email
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.PASSWORD_CHANGE_NOTIFICATION,
             recipients=[current_user.email],
@@ -141,8 +137,8 @@ class UserService:
         await self.user_repo.update(current_user, updates)
 
         # Send verification email
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.EMAIL_CHANGE_NOTIFICATION,
             recipients=[new_email]

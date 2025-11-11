@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.api.dependencies import authenticate
+from app.api.dependencies import authenticate_admin
 from app.api.routers import main_router
 from app.core.config import settings
 from app.core.tasks.cron_jobs import anonymize_soft_deleted_users
@@ -140,19 +140,19 @@ def root():
 
 
 @app.get("/docs/swagger", include_in_schema=False)
-async def custom_swagger_ui(authenticated: bool = Depends(authenticate)):
+async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
     return get_swagger_ui_html(
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
 
 @app.get("/docs/redoc", include_in_schema=False)
-async def custom_redoc_ui(authenticated: bool = Depends(authenticate)):
+async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
     return get_redoc_html(
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
 
 @app.get("/docs/openapi.json", include_in_schema=False)
-async def openapi_json(authenticated: bool = Depends(authenticate)):
+async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
     return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=app.routes)

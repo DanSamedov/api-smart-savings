@@ -5,7 +5,6 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import Request, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
@@ -14,17 +13,14 @@ from app.core.utils.exceptions import CustomException
 from app.core.utils.helpers import get_client_ip, generate_secure_code
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
 from app.modules.user.models import User
-from app.modules.user.repository import UserRepository
-from app.modules.notifications.email.service import EmailNotificationService
 from app.modules.shared.enums import NotificationType
-from app.modules.wallet.repository import WalletRepository
 
 
 class GDPRService:
-    def __init__(self, db: AsyncSession):
-        self.user_repo = UserRepository(db)
-        self.wallet_repo = WalletRepository(db)
-        self.notification_service = EmailNotificationService()
+    def __init__(self, user_repo, wallet_repo, notification_manager):
+        self.user_repo = user_repo
+        self.wallet_repo = wallet_repo
+        self.notification_manager = notification_manager
 
     async def request_delete_account(
         self,
@@ -64,8 +60,8 @@ class GDPRService:
         )
 
         # Send deletion verification email
-        await self.notification_service.schedule(
-            self.notification_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.ACCOUNT_DELETION_REQUEST,
             recipients=[current_user.email],
@@ -120,8 +116,8 @@ class GDPRService:
         await self.user_repo.update(current_user, updates)
 
         # Send a scheduled deletion confirmation email
-        await self.notification_service.schedule(
-            self.notification_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.ACCOUNT_DELETION_SCHEDULED,
             recipients=[current_user.email],

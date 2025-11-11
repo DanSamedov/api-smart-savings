@@ -8,7 +8,7 @@ from app.core.config import settings
 app_name = settings.APP_NAME
 
 
-def standard_response(status: str, message: Optional[str], data: Optional[dict] = None) -> dict[str, Any]:
+def standard_response(message: Optional[str],status: str = "success", data: Optional[dict] = None) -> dict[str, Any]:
     return {
         "info": f"{app_name} API - v1",
         "timestamp": datetime.now(timezone.utc).isoformat(),

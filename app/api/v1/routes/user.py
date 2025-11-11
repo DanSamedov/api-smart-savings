@@ -3,13 +3,11 @@
 from typing import Any
 
 from fastapi import Request, APIRouter, Depends, status, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.database.session import get_session
 from app.modules.user.models import User
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.response import standard_response
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_user_service
 from app.modules.user.service import UserService
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 
@@ -20,7 +18,7 @@ router = APIRouter()
 @limiter.limit("20/minute")
 async def get_user_info(
     request: Request, current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session)
+    user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
     """
     Retrieve the currently authenticated user's profile details.
@@ -36,7 +34,6 @@ async def get_user_info(
     Raises:
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    user_service = UserService(db)
     user_data = await user_service.get_user_details(current_user=current_user)
 
 
@@ -51,7 +48,7 @@ async def update_user_info(
     request: Request,
     update_request: UserUpdate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session),
+    user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
     """
     Partially update the currently authenticated user's details.
@@ -65,7 +62,6 @@ async def update_user_info(
     Raises:
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    user_service = UserService(db)
     response = await user_service.update_user_details(update_request=update_request, current_user=current_user)
     msg = response.get("message")
 
@@ -77,7 +73,13 @@ async def update_user_info(
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-async def change_user_password(request: Request, change_password_request: ChangePasswordRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def change_user_password(
+        request: Request,
+        change_password_request: ChangePasswordRequest,
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(get_current_user),
+        user_service: UserService = Depends(get_user_service)
+) -> dict[str, Any]:
     """
     Update currently authenticated user password, requires current password for verification.
 
@@ -91,7 +93,6 @@ async def change_user_password(request: Request, change_password_request: Change
         HTTPException: 403 Forbidden if the provided 'current_password' is invalid.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    user_service = UserService(db)
     await user_service.update_user_password(change_password_request=change_password_request, current_user=current_user, background_tasks=background_tasks)
     
     return standard_response(
@@ -107,7 +108,7 @@ async def change_user_email(
     change_email_request: ChangeEmailRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session)
+    user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
     """
     Change the email address for the currently authenticated user.
@@ -131,7 +132,6 @@ async def change_user_email(
         HTTPException: 409 Conflict if the new email is already in use by another account.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    user_service = UserService(db)
     await user_service.change_user_email(
         change_email_request=change_email_request,
         current_user=current_user,
@@ -149,7 +149,7 @@ async def change_user_email(
 async def view_login_history(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session)
+    user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
     """
     Retrieve login activity details for the current user.
@@ -163,7 +163,6 @@ async def view_login_history(
     Raises:
         HTTPException: 429 Too Many Requests if rate limit exceeded
     """
-    user_service = UserService(db)
     history = await user_service.get_login_history(current_user=current_user)
     
     return standard_response(

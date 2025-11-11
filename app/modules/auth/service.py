@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from fastapi import Request, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
@@ -15,8 +14,6 @@ from app.core.security.jwt import (
 from app.core.security.hashing import hash_ip, hash_password, verify_password
 from app.modules.user.models import User
 from app.modules.wallet.models import Wallet
-from app.modules.user.repository import UserRepository
-from app.modules.wallet.repository import WalletRepository
 from app.modules.auth.schemas import (
     EmailOnlyRequest,
     LoginRequest,
@@ -32,15 +29,14 @@ from app.core.utils.helpers import (
     get_client_ip,
 )
 from app.core.utils.exceptions import CustomException
-from app.modules.notifications.email.service import EmailNotificationService
 from app.core.utils.helpers import get_location_from_ip
 
 
 class AuthService:
-    def __init__(self, db: AsyncSession):
-        self.user_repo = UserRepository(db)
-        self.wallet_repo = WalletRepository(db)
-        self.email_service = EmailNotificationService()
+    def __init__(self, user_repo, wallet_repo, notification_manager):
+        self.user_repo = user_repo
+        self.wallet_repo = wallet_repo
+        self.notification_manager = notification_manager
 
     async def register_new_user(
         self,
@@ -69,8 +65,8 @@ class AuthService:
         await self.user_repo.create(new_user)
 
         # Send verification email
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.VERIFICATION,
             recipients=[register_request.email],
@@ -107,8 +103,8 @@ class AuthService:
         wallet = Wallet(user_id=user.id)
         await self.wallet_repo.create(wallet)
 
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.WELCOME,
             recipients=[user.email],
@@ -133,8 +129,8 @@ class AuthService:
             {"verification_code": verification_code, "verification_code_expires_at": expires_at},
         )
 
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.VERIFICATION,
             recipients=[user.email],
@@ -178,8 +174,8 @@ class AuthService:
 
         # Login notification
         location = await get_location_from_ip(raw_ip)
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.LOGIN_NOTIFICATION,
             recipients=[user.email],
@@ -214,7 +210,7 @@ class AuthService:
             await self.user_repo.update(user, updates)
 
             location = await get_location_from_ip(raw_ip)
-            await self.email_service.send(
+            await self.notification_manager.send(
                 notification_type=NotificationType.ACCOUNT_LOCKED,
                 recipients=[user.email],
                 context={"ip": raw_ip, "location": location, "time": transform_time(now)},
@@ -230,7 +226,7 @@ class AuthService:
     async def _handle_disabled_account(
         self, user: User, background_tasks: Optional[BackgroundTasks]
     ) -> None:
-        await self.email_service.send(
+        await self.notification_manager.send(
             notification_type=NotificationType.ACCOUNT_DISABLED,
             recipients=[user.email],
         )
@@ -246,8 +242,8 @@ class AuthService:
             return
 
         reset_token = create_password_reset_token(email)
-        await self.email_service.schedule(
-            self.email_service.send,
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.PASSWORD_RESET,
             recipients=[email],
@@ -274,8 +270,8 @@ class AuthService:
             }
 
             await self.user_repo.update(user, updates)
-            await self.email_service.schedule(
-                self.email_service.send,
+            await self.notification_manager.schedule(
+                self.notification_manager.send,
                 background_tasks=background_tasks,
                 notification_type=NotificationType.PASSWORD_RESET_NOTIFICATION,
                 recipients=[user.email],

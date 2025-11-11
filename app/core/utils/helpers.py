@@ -25,9 +25,8 @@ def mask_email(email: str) -> str:
     except Exception:
         return "****@****"
 
-
 def transform_time(time: datetime) -> str:
-    """Return a user-friendly time as string."""
+    """Return a user-friendly time as a string."""
     local_dt = time.astimezone(ZoneInfo("Europe/Warsaw"))
     transformed = local_dt.strftime("%b %d, %Y %I:%M %p %Z")
     return transformed

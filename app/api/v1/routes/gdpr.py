@@ -3,12 +3,10 @@
 from typing import Any
 
 from fastapi import APIRouter, Request, BackgroundTasks, status, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_gdpr_service
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.response import standard_response
-from app.infra.database.session import get_session
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
 from app.modules.gdpr.service import GDPRService
 from app.modules.user.models import User
@@ -22,7 +20,7 @@ async def request_account_deletion(
         request: Request,
         background_tasks: BackgroundTasks,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_session)
+        gdpr_service: GDPRService = Depends(get_gdpr_service)
 ) -> dict[str, Any]:
     """
     Request a verification code for account deletion.
@@ -40,7 +38,6 @@ async def request_account_deletion(
         HTTPException: 403 Forbidden if the account is already scheduled for deletion.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    gdpr_service = GDPRService(db)
     await gdpr_service.request_delete_account(current_user=current_user, background_tasks=background_tasks)
 
     return standard_response(
@@ -56,7 +53,7 @@ async def schedule_account_deletion(
         background_tasks: BackgroundTasks,
         deletion_request: VerificationCodeOnlyRequest,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_session)
+        gdpr_service: GDPRService = Depends(get_gdpr_service)
 ) -> dict[str, Any]:
     """
     Verify the account deletion code and schedule the user's account for deletion.
@@ -72,7 +69,6 @@ async def schedule_account_deletion(
         HTTPException: 403 Forbidden if the account is already scheduled for deletion.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    gdpr_service = GDPRService(db)
     await gdpr_service.schedule_account_delete(request=request, current_user=current_user,
                                                deletion_request=deletion_request, background_tasks=background_tasks)
 
@@ -86,8 +82,7 @@ async def schedule_account_deletion(
 @limiter.limit("2/hour")
 async def request_data_export(request: Request, background_tasks: BackgroundTasks,
                                  current_user: User = Depends(get_current_user),
-                                 db: AsyncSession = Depends(get_session)) -> dict[str, Any]:
-    gdpr_service = GDPRService(db)
+                                 gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:
     await gdpr_service.request_export_of_data(request=request, current_user=current_user)
 
     return standard_response(
