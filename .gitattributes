@@ -1,0 +1,3 @@
+# Mark the templates folder as "vendored" so GitHub ignores it in language stats
+app/templates/** linguist-vendored
+app/templates/** linguist-language=HTML
