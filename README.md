@@ -20,8 +20,8 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 | Developer | GitHub Username | Responsibilities |
 |------------|-----------------|------------------|
 | Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core backend & DevOps** - repo management, authentication, user profiles, wallets, group savings, GDPR, notifications, and CI/CD |
-| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core backend** — authentication, user profile, wallets, transactions, group savings, testing, and SaveBuddy AI |
-| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** — SaveBuddy AI, notifications, GDPR, and testing |
+| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core backend** - authentication, user profile, wallets, transactions, group savings, testing, and SaveBuddy AI |
+| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI, logging, notifications, GDPR, research and testing |
 
 ## Table of Contents
   
