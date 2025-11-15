@@ -32,11 +32,12 @@ async def get_wallet_transactions(
     request: Request,
     current_user: User = Depends(get_current_user),
     wallet_service: WalletService = Depends(get_wallet_service),
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """
     Get all transactions for the authenticated user.
     """
-    return await wallet_service.get_transactions(current_user)
+    response = await wallet_service.get_transactions(current_user)
+    return standard_response(message="Transaction history retrieved successfully.", data=response)
 
 
 @router.post("/deposit", status_code=status.HTTP_200_OK)
