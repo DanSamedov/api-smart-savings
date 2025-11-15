@@ -321,10 +321,10 @@ class TestLoginExistingUser:
 
         result = await auth_service.login_existing_user(mock_request, login_request, background_tasks)
 
-        assert "token" in result
-        assert result["type"] == "bearer"
-        assert "expiry" in result
-        assert isinstance(result["token"], str)
+        assert "access_token" in result
+        assert result["token_type"] == "bearer"
+        assert "expires_at" in result
+        assert isinstance(result["access_token"], str)
         mock_user_repo.get_by_email_or_none.assert_called_once_with("test@example.com")
         update_call = mock_user_repo.update.call_args
         assert update_call[0][0] == verified_user
@@ -461,7 +461,7 @@ class TestLoginExistingUser:
         call_args = mock_create_token.call_args
         assert call_args[1]["data"]["sub"] == verified_user.email
         assert call_args[1]["token_version"] == verified_user.token_version
-        assert result["token"] == "test_token"
+        assert result["access_token"] == "test_token"
 
     @pytest.mark.asyncio
     async def test_login_failed_attempts_increment(
