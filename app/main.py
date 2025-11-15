@@ -155,4 +155,4 @@ async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
 
 @main_app.get("/docs/openapi.json", include_in_schema=False)
 async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
-    return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=app.routes)
+    return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=main_app.routes)
