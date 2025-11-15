@@ -13,7 +13,7 @@ from app.modules.auth.schemas import (EmailOnlyRequest, LoginRequest,
                                       VerifyEmailRequest)
 from app.modules.user.models import User
 from app.modules.auth.service import AuthService
-from app.core.utils.response import standard_response, LoginResponse
+from app.core.utils.response import standard_response, LoginResponse, LoginData
 
 router = APIRouter()
 
@@ -240,7 +240,7 @@ async def login(
         login_request (LoginRequest): User login credentials including email and password.
 
     Returns:
-        dict(str, Any): Success message with access token and token details.
+        LoginResponse: Success message with data dict containing saccess token and token details.
 
     Raises:
         HTTPException: 401 Unauthorized if login credentials are invalid.
@@ -252,6 +252,6 @@ async def login(
     token_data = await auth_service.login_existing_user(
             request=request, login_request=login_request, background_tasks=background_tasks
         )
-    response = LoginResponse(data=token_data)
+    response = LoginResponse(data=LoginData(**token_data))
 
     return response
