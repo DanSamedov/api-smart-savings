@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     - Startup: initialize test accounts (dev), soft-delete simulation, set timezone, start scheduler
     - Shutdown: stop scheduler
     """
-    print(f"[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
+    print(f"\n[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
     # --- Development: setup test users ---
     if settings.APP_ENV == "development":
         # 1. Initialize test accounts if missing
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
 # =======================================
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
-app = FastAPI(
+main_app = FastAPI(
     title=f"{app_name} API",
     version=app_version or "n/a",
     description="Backend service for a smart savings app.",
@@ -86,13 +86,13 @@ app = FastAPI(
     openapi_url=None,
     lifespan=lifespan,
 )
-app.state.limiter = limiter
+main_app.state.limiter = limiter
 
 
 # =======================================
 # MIDDLEWARE
 # =======================================
-app.add_middleware(LoggingMiddleware)
+main_app.add_middleware(LoggingMiddleware)
 
 if settings.ALLOWED_ORIGINS:
     if isinstance(settings.ALLOWED_ORIGINS, str):
@@ -104,7 +104,7 @@ if settings.ALLOWED_ORIGINS:
 else:
     allowed_origins = ["http://localhost:3195"]
 
-app.add_middleware(
+main_app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
@@ -116,22 +116,22 @@ app.add_middleware(
 # =======================================
 # ROUTERS
 # =======================================
-app.include_router(main_router, prefix="/v1")
+main_app.include_router(main_router, prefix="/v1")
 
 
 # =======================================
 # EXCEPTION HANDLERS
 # =======================================
-app.add_exception_handler(RateLimitExceeded, error_handlers.rate_limit_handler)
-app.add_exception_handler(StarletteHTTPException, error_handlers.http_exception_handler)
-app.add_exception_handler(RequestValidationError, error_handlers.validation_exception_handler)
-app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
+main_app.add_exception_handler(RateLimitExceeded, error_handlers.rate_limit_handler)
+main_app.add_exception_handler(StarletteHTTPException, error_handlers.http_exception_handler)
+main_app.add_exception_handler(RequestValidationError, error_handlers.validation_exception_handler)
+main_app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
 
 
 # =======================================
 # BASE ROUTES
 # =======================================
-@app.get("/")
+@main_app.get("/")
 def root():
     """
     Base app endpoint.
@@ -139,20 +139,20 @@ def root():
     return standard_response(status="success", message="API is live.")
 
 
-@app.get("/docs/swagger", include_in_schema=False)
+@main_app.get("/docs/swagger", include_in_schema=False)
 async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
     return get_swagger_ui_html(
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
 
-@app.get("/docs/redoc", include_in_schema=False)
+@main_app.get("/docs/redoc", include_in_schema=False)
 async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
     return get_redoc_html(
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
 
-@app.get("/docs/openapi.json", include_in_schema=False)
+@main_app.get("/docs/openapi.json", include_in_schema=False)
 async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
     return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=app.routes)

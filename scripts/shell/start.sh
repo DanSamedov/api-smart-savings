@@ -11,4 +11,4 @@ echo "[START SCRIPT] (i) Running database migrations..."
 alembic upgrade head
 
 echo "[START SCRIPT] (i) Starting FastAPI application..."
-uvicorn app.main:app --host 0.0.0.0 --port 3195 --reload
+uvicorn app.main:main_app --host 0.0.0.0 --port 3195 --reload

@@ -12,4 +12,4 @@ echo "[START SCRIPT] (i) Applying alembic migrations..."
 alembic upgrade head
 
 echo "[START SCRIPT] (i) Starting FastAPI (dev, reload enabled)..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 3195 --reload
+exec uvicorn app.main:main_app --host 0.0.0.0 --port 3195 --reload
