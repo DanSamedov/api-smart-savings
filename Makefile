@@ -4,15 +4,15 @@
 
 # Build image and run containers
 build:
-	docker-compose up --build
+	docker compose up --build
 
 # Stop containers
 down:
-	docker-compose down 
+	docker compose down
 
 # Stop containers and cleanup volumes (DB data)
 downv:
-	docker-compose down -v 
+	docker compose down -v
 
 # Create a new migration
 makemigration:
