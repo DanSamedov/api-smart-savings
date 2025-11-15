@@ -13,7 +13,7 @@ from app.modules.auth.schemas import (EmailOnlyRequest, LoginRequest,
                                       VerifyEmailRequest)
 from app.modules.user.models import User
 from app.modules.auth.service import AuthService
-from app.core.utils.response import standard_response
+from app.core.utils.response import standard_response, LoginResponse
 
 router = APIRouter()
 
@@ -223,14 +223,14 @@ async def logout_all_devices(
     )
 
 
-@router.post("/login", status_code=status.HTTP_200_OK)
+@router.post("/login", status_code=status.HTTP_200_OK, response_model=LoginResponse)
 @limiter.limit("4/minute")
 async def login(
     request: Request,
     login_request: LoginRequest,
     background_tasks: BackgroundTasks,
     auth_service: AuthService = Depends(get_auth_service)
-) -> dict[str, Any]:
+) -> LoginResponse:
     """
     Authenticate a user and issue an access token.
 
@@ -249,10 +249,9 @@ async def login(
         HTTPException: 403 Forbidden after several invalid login attempts.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    response = await auth_service.login_existing_user(
-        request=request, login_request=login_request, background_tasks=background_tasks
-    )
+    token_data = await auth_service.login_existing_user(
+            request=request, login_request=login_request, background_tasks=background_tasks
+        )
+    response = LoginResponse(data=token_data)
 
-    return standard_response(
-        status="success", message="Login successful", data=response
-    )
+    return response

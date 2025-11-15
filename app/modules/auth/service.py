@@ -182,7 +182,7 @@ class AuthService:
             context={"ip": raw_ip, "location": location, "time": transform_time(user.last_login_at)},
         )
 
-        return {"token": access_token, "type": "bearer", "expiry": expire}
+        return {"access_token": access_token, "token_type": "bearer", "expires_at": expire.isoformat()}
 
     async def _handle_failed_login(
         self, user: User, raw_ip: str, hashed_ip: str, background_tasks: Optional[BackgroundTasks]
