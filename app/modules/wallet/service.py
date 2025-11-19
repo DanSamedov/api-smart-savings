@@ -144,7 +144,7 @@ class WalletService:
 
         min_deposit = settings.MIN_WALLET_DEPOSIT_AMOUNT
         if transaction_request.amount < min_deposit:
-            raise CustomException.e400_bad_request(f"Minimum deposit amount is {min_deposit} {current_user.preferred_currency}")
+            raise CustomException.e400_bad_request(f"Minimum deposit amount is {min_deposit} {current_user.preferred_currency.value}")
 
         new_balance = float(wallet.total_balance) + float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
@@ -181,7 +181,7 @@ class WalletService:
 
         min_withdrawal = settings.MIN_WALLET_WITHDRAWAL_AMOUNT
         if transaction_request.amount < min_withdrawal:
-            raise CustomException.e400_bad_request(f"Minimum withdrawal amount is {min_withdrawal} {current_user.preferred_currency}")
+            raise CustomException.e400_bad_request(f"Minimum withdrawal amount is {min_withdrawal} {current_user.preferred_currency.value}")
 
         available_balance = wallet.available_balance
         if available_balance < float(transaction_request.amount):
