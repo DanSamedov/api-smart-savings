@@ -1,9 +1,6 @@
-# app/main.py
-import asyncio
-from contextlib import asynccontextmanager
+# app/setup/main.py
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import Depends, FastAPI
+from fastapi import Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -11,83 +8,19 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from app.core.setup.instance import application
 from app.api.dependencies import authenticate_admin
 from app.api.routers import main_router
 from app.core.config import settings
-from app.core.tasks.cron_jobs import anonymize_soft_deleted_users
-from app.core.middleware.logging import LoggingMiddleware, cleanup_old_logs
-from app.core.middleware.rate_limiter import limiter
-from app.infra.database.session import set_utc_timezone
-from app.infra.database.init_db import init_test_accounts, soft_delete_test_users
+from app.core.middleware.logging import LoggingMiddleware
 from app.core.utils import error_handlers
 from app.core.utils.response import standard_response
 
 
-# =======================================
-# LIFESPAN EVENTS
-# =======================================
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    FastAPI lifespan context:
-    - Startup: initialize test accounts (dev), soft-delete simulation, set timezone, start scheduler
-    - Shutdown: stop scheduler
-    """
-    print(f"\n[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
-    # --- Development: setup test users ---
-    if settings.APP_ENV == "development":
-        # 1. Initialize test accounts if missing
-        await init_test_accounts()
-        # 2. Soft-delete test users 14 days ago for testing anonymization
-        # await soft_delete_test_users(grace_days=14)
-        # 3. Run anonymization immediately to verify
-        # await anonymize_soft_deleted_users()
-
-    # --- General startup tasks ---
-    cleanup_old_logs()  # Cleanup old log files
-    await set_utc_timezone()  # Ensure DB session uses UTC timezone
-
-    # --- Scheduler for production / recurring jobs ---
-    scheduler = AsyncIOScheduler()
-    async def run_anonymize_job():
-        await anonymize_soft_deleted_users()
-    scheduler.add_job(
-        lambda: asyncio.create_task(run_anonymize_job()),
-        trigger="interval",
-        hours=settings.HARD_DELETE_CRON_INTERVAL_HOURS,
-        id="anonymize_soft_deleted_users",
-        replace_existing=True,
-    )
-    scheduler.start()
-    print(
-        f"[STARTUP INFO] (i) User anonymization cron job scheduled every "
-        f"{settings.HARD_DELETE_CRON_INTERVAL_HOURS} hour(s)\n", flush=True
-    )
-
-    # --- Yield control to app ---
-    yield
-
-    # --- Shutdown tasks ---
-    scheduler.shutdown()
-    print("[SHUTDOWN INFO] Scheduler shut down\n", flush=True)
-
-
-# =======================================
-# APP INSTANCE
-# =======================================
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
-main_app = FastAPI(
-    title=f"{app_name} API",
-    version=app_version or "n/a",
-    description="Backend service for a smart savings app.",
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
-    lifespan=lifespan,
-)
-main_app.state.limiter = limiter
 
+main_app = application
 
 # =======================================
 # MIDDLEWARE
