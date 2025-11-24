@@ -43,10 +43,12 @@ async def run_lifespan(app: FastAPI):
     async def run_anonymize_job():
         await anonymize_soft_deleted_users()
     scheduler.add_job(
-        lambda: asyncio.create_task(run_anonymize_job()),
+        run_anonymize_job,
         trigger="interval",
         hours=settings.HARD_DELETE_CRON_INTERVAL_HOURS,
         id="anonymize_soft_deleted_users",
+        max_instances=1,
+        coalesce=True,
         replace_existing=True,
     )
     scheduler.start()
