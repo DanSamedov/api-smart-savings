@@ -3,10 +3,12 @@
 from typing import Any
 
 from fastapi import Request, APIRouter, Depends, status, BackgroundTasks, Query
+from redis.asyncio import Redis
+
 from app.modules.user.models import User
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.response import standard_response
-from app.api.dependencies import get_current_user, get_wallet_service
+from app.api.dependencies import get_current_user, get_wallet_service, get_redis
 from app.modules.wallet.service import WalletService
 from app.modules.wallet.schemas import TransactionRequest, WalletBalanceResponse
 
@@ -30,6 +32,7 @@ async def get_wallet_balance(
 @limiter.limit("10/minute")
 async def get_wallet_transactions(
     request: Request,
+    redis: Redis = Depends(get_redis),
     page: int = Query(1, ge=1, description="Page number (1-based)."),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)."),
     current_user: User = Depends(get_current_user),
@@ -49,7 +52,7 @@ async def get_wallet_transactions(
             - total_pages: total number of pages available
             - total_transactions: total number of transactions
     """
-    response = await wallet_service.get_transactions(current_user, page=page, page_size=page_size)
+    response = await wallet_service.get_transactions(redis=redis, current_user=current_user, page=page, page_size=page_size)
     return standard_response(message="Transaction history retrieved successfully.", data=response)
 
 
@@ -59,6 +62,7 @@ async def deposit(
     request: Request,
     transaction_request: TransactionRequest,
     background_tasks: BackgroundTasks,
+    redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
     wallet_service: WalletService = Depends(get_wallet_service)
 ) -> dict[str, Any]:
@@ -82,6 +86,7 @@ async def deposit(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     result = await wallet_service.deposit(
+        redis=redis,
         transaction_request=transaction_request, current_user=current_user, background_tasks=background_tasks
     )
 
@@ -98,6 +103,7 @@ async def withdraw(
     request: Request,
     transaction_request: TransactionRequest,
     background_tasks: BackgroundTasks,
+    redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
     wallet_service: WalletService = Depends(get_wallet_service)
 ) -> dict[str, Any]:
@@ -122,6 +128,7 @@ async def withdraw(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     result = await wallet_service.withdraw(
+        redis=redis,
         transaction_request=transaction_request, current_user=current_user, background_tasks=background_tasks
     )
 

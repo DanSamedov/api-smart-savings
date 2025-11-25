@@ -2,9 +2,11 @@
 from typing import Any, Optional
 
 from fastapi import BackgroundTasks
+from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
+from app.core.utils.cache import cache_or_get, invalidate_cache
 from app.core.utils.exceptions import CustomException
 from app.core.utils.helpers import transform_time
 from app.modules.user.models import User
@@ -96,8 +98,11 @@ class WalletService:
             "available_balance": wallet.available_balance,
         }
 
-    async def get_transactions(self, current_user: User, page: int, page_size: int) -> dict[str, Any]:
-        """Return a paginated list of transactions for the current user.
+    async def get_transactions(
+            self, redis: Redis, current_user: User, page: int, page_size: int
+    ) -> dict[str, Any]:
+        """
+        Return a paginated list of transactions for the current user with caching.
 
         Transactions are ordered by creation timestamp descending (most recent first).
 
@@ -114,39 +119,55 @@ class WalletService:
                 - total_pages: total pages available
                 - total_transactions: total transaction count
         """
-        total_transactions = await self.transaction_repo.get_user_transactions_count(current_user.id)
 
-        total_pages = (total_transactions + page_size - 1) // page_size if total_transactions > 0 else 0
-        offset = (page - 1) * page_size
-        if total_pages and page > total_pages:
-            transactions = []
-        else:
-            transactions = await self.transaction_repo.get_user_transactions_paginated(
-                current_user.id, offset=offset, limit=page_size
-            )
+        cache_key = f"wallet_transactions:{current_user.id}:page:{page}:size:{page_size}"
 
-        tx_payload = [
-            {
-                "id": str(tx.id),
-                "amount": float(tx.amount),
-                "type": tx.type.value,
-                "status": tx.status.value,
-                "created_at": tx.created_at.isoformat(),
-                "executed_at": tx.executed_at.isoformat() if tx.executed_at else None,
+        async def fetch_transactions():
+            total_transactions = await self.transaction_repo.get_user_transactions_count(current_user.id)
+
+            total_pages = (total_transactions + page_size - 1) // page_size if total_transactions > 0 else 0
+            offset = (page - 1) * page_size
+
+            if total_pages and page > total_pages:
+                transactions = []
+            else:
+                transactions = await self.transaction_repo.get_user_transactions_paginated(
+                    current_user.id, offset=offset, limit=page_size
+                )
+
+            tx_payload = [
+                {
+                    "id": str(tx.id),
+                    "amount": float(tx.amount),
+                    "type": tx.type.value,
+                    "status": tx.status.value,
+                    "created_at": tx.created_at.isoformat(),
+                    "executed_at": tx.executed_at.isoformat() if tx.executed_at else None,
+                }
+                for tx in transactions
+            ]
+
+            return {
+                "transactions": tx_payload,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_transactions": total_transactions,
             }
-            for tx in transactions
-        ]
 
-        return {
-            "transactions": tx_payload,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages,
-            "total_transactions": total_transactions,
-        }
+        # Retrieve from cache or fetch + cache
+        transactions_data = await cache_or_get(
+            redis=redis,
+            key=cache_key,
+            fetch_func=fetch_transactions,
+            ttl=600,
+        )
+
+        return transactions_data
 
     async def deposit(
         self,
+        redis: Redis,
         transaction_request: TransactionRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
@@ -177,11 +198,14 @@ class WalletService:
 
         transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_DEPOSIT)
 
+        await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
+
         await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
         return self._generate_transaction_response(wallet, transaction)
 
     async def withdraw(
         self,
+        redis: Redis,
         transaction_request: TransactionRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
@@ -218,6 +242,8 @@ class WalletService:
         new_balance = float(wallet.total_balance) - float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
         transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_WITHDRAWAL)
+
+        await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
 
         await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
         return self._generate_transaction_response(wallet, transaction)
