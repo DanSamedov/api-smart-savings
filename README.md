@@ -79,7 +79,7 @@ Each module contains:
 - **Versioning:** `/v1/...` URL structure for all endpoints  
 - **Docs:** Swagger & ReDoc available at `/v1/docs` (protected with Basic Auth)  
 - **Rate Limiting:** `Per-minute/hour` restrictions per IP  
-- **Redis:** Used for `caching` and fast data retrieval  
+- **Redis:** Used for `caching` and fast data retrieval with reasonable TTLs + manual cache invalidation 
 - **Logging:** Structured `JSON logs` per request, with hashed IP addresses  
 - **Makefile:** Common commands for Docker, Alembic, and Pytest  
 - **Scripts:** Dev and prod startup scripts in `scripts/`  
@@ -121,7 +121,7 @@ SmartSave was built around the **three core GDPR principles**:
 - IP addresses are stored as **irreversible hashes** in logs.  
 - Users can **request a data report**, delivered as a **password-protected PDF** via email.  
 - Data modification is allowed through the app or via support requests.  
-- Account deletions are **soft-deleted** for 14 days before anonymization.  
+- Account deletions are **soft-deleted** for 365 days before anonymization (duration is easily configurable).  
 - **Anonymization Process:**
   - All PII replaced with random values.
   - User can no longer log in.
@@ -129,6 +129,40 @@ SmartSave was built around the **three core GDPR principles**:
 - Logs older than **30 days** are auto-deleted.
 - GDPR requests are logged in a dedicated `GDPRRequest` table.  
 - After two years, even the anonymized GDPR requests are removed.
+
+---
+
+## Caching with Redis
+
+To improve performance and reduce database load, we implemented **Redis caching** for frequently accessed endpoints, i.e:
+
+- `GET /user/me`
+- `GET /wallet/transactions`
+
+### How It Works
+
+1. **Cache Key Naming:**  
+   Keys follow a consistent pattern to avoid collisions and allow easy invalidation:
+   - Current user: `user_current:{user_email}`
+   - Wallet transactions: `wallet_transactions:{user_id}:page:{page}:size:{page_size}`
+
+2. **Cache Retrieval:**  
+   Before hitting the database, the application checks Redis for the cached data.  
+   - If a cache hit occurs, the JSON data is returned immediately.
+   - If a cache miss occurs, the data is fetched from the database, cached in Redis, and then returned.
+
+3. **Time-to-Live (TTL):**  
+   Cached data expires after a default TTL (10 minutes) / custom TTL set for each cache store, to ensure freshness.
+
+4. **Cache Invalidation:**  
+   Whenever the underlying data changes (e.g., user updates, new transactions), the relevant cache keys are invalidated automatically to prevent stale data.
+
+5. **Performance Impact:**  
+   - Cache miss: ~124–150ms (includes DB query)  
+   - Cache hit: ~50-80ms (Redis retrieval + deserialization)  
+
+This strategy ensures low-latency responses for frequently accessed endpoints while keeping the database load minimal.
+
 
 ---
 
@@ -185,17 +219,27 @@ SmartSave was built around the **three core GDPR principles**:
 ---
 
 ## Screenshots
-
+Few screenshots of endpoints, email templates & API responses.
 ### API Endpoints (Swagger)
-![Swagger Screenshot](docs/images/swagger_endpoints.png)
-
-### Frontend Interface
-![Frontend Screenshot 1](docs/images/frontend_home.png)  
-![Frontend Screenshot 2](docs/images/frontend_groups.png)
+| Description               | Preview                                                                              |
+|---------------------------|--------------------------------------------------------------------------------------|
+| **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
+| **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_&_gdpr.png) |
+| **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)              |
 
 ### Email Templates
-![Email Template Screenshot 1](docs/images/wallet_notification.png)  
-![Email Template Screenshot 2](docs/images/group_notification.png)
+| Description           | Preview                                                              |
+|-----------------------|----------------------------------------------------------------------|
+| **Login Notification** | ![Login Notification](./assets/images/emails/login_notification.png) |
+| **Reset Password**    | ![Reset Password](./assets/images/emails/reset_password.png)         |
+| **GDPR Data Export**  | ![GDPR Data Export](./assets/images/emails/gdpr_data_export.png)     |
+| **Wallet Deposit**    | ![Wallet Deposit](./assets/images/emails/wallet_deposit.png)         |
+
+### API Responses
+| Description             | Preview                                                                   |
+|-------------------------|---------------------------------------------------------------------------|
+| **Wallet Deposit**      | ![Wallet Deposit](./assets/images/responses/wallet_deposit.png)           |
+| **Wallet Transactions** | ![Wallet Transactions](./assets/images/responses/wallet_transactions.png) |
 
 ---
 
