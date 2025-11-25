@@ -64,6 +64,44 @@ test: added test for verify email endpoint
 
 ---
 
+## Caching Guidelines
+
+This section provides guidelines for naming cache keys, TTL, and general caching best practices for our FastAPI app with Redis.
+
+---
+
+### 1. Cache Key Naming
+
+- **Use clear, descriptive keys** that indicate the resource and scope.
+- **Use a colon `:` as a separator** for hierarchy and readability.
+- **Include unique identifiers** for user-specific or entity-specific data.
+
+#### Recommended Patterns
+
+| Resource                  | Key Pattern                           | Example                              |
+|----------------------------|--------------------------------------|--------------------------------------|
+| Current authenticated user | `user_current:{email}`                | `user_current:john@example.com`      |
+| Wallet transactions        | `wallet_transactions:{user_id}`       | `wallet_transactions:42`             |
+| Any other entity           | `{entity}:{id}`                        | `notification:123`                   |
+| Lists/collections          | `{entity}_list:{filter}`              | `users_list:active`                  |
+
+**Tips:**
+- Always include user ID/email for user-specific data.
+- Avoid very long keys; use readable identifiers.
+
+---
+
+### 2. TTL (Time-to-Live)
+
+- Default TTL: `300` seconds (5 minutes) unless otherwise needed.
+- Shorter TTL for highly dynamic data.
+- Longer TTL for mostly static data.
+
+```python
+CACHE_TTL = 300  # Default TTL in seconds
+```
+
+
 ## Code Review & Pull Requests
 
 - Always **open a Pull Request (PR)** to merge into `main`
