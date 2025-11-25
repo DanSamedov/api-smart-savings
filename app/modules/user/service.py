@@ -4,6 +4,9 @@ from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import Request, BackgroundTasks
+from redis.asyncio import Redis
+
+from app.core.utils.cache import invalidate_cache
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
@@ -36,20 +39,19 @@ class UserService:
 
         return data
     
-    async def update_user_details(self, update_request: UserUpdate, current_user: User) -> dict[str, str]:
+    async def update_user_details(self, redis: Redis, update_request: UserUpdate, current_user: User) -> dict[str, str]:
         """
         Partially update the currently authenticated user if any changes are provided.
         """
         update_data = update_request.model_dump(exclude_unset=True)
-        # Early return if nothing to update
         if not update_data:
             return {"message": "No changes provided."}
         
         # Fetch the user (exists by JWT, so no need to validate existence)
         user = await self.user_repo.get_by_email(current_user.email)
-
         await self.user_repo.update(user, update_data)
-        
+        # Invalidate redis cache
+        await invalidate_cache(redis, f"user_current:{user.email}")
         return {"message": "User details updated successfully."}
         
     async def update_user_password(self, change_password_request: ChangePasswordRequest, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:

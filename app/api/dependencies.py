@@ -1,14 +1,16 @@
 # app/api/dependencies.py
-
+import json
 import secrets
 
-from fastapi import Depends, HTTPException, status
+from redis.asyncio import Redis
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import (HTTPBasic, HTTPBasicCredentials,
                               OAuth2PasswordBearer)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security.jwt import decode_token
+from app.core.utils.cache import cache_or_get, invalidate_cache
 from app.infra.database.session import get_session
 from app.modules.auth.service import AuthService
 from app.modules.gdpr.service import GDPRService
@@ -21,6 +23,7 @@ from app.modules.user.service import UserService
 from app.modules.wallet.repository import WalletRepository, TransactionRepository
 from app.modules.wallet.service import WalletService
 
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 
 security = HTTPBasic()
@@ -28,6 +31,9 @@ security = HTTPBasic()
 USERNAME = settings.DOCS_USERNAME
 PASSWORD = settings.DOCS_PASSWORD
 
+async def get_redis(request: Request) -> Redis:
+    """Dependency for redis client in app's instance"""
+    return request.app.state.redis
 
 def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
     """
@@ -50,31 +56,43 @@ def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
+    redis: Redis = Depends(get_redis),
     user_repo: UserRepository = Depends(lambda session=Depends(get_session): UserRepository(session)),
 ) -> User:
     """
-    Retrieve the current authenticated user from a JWT token.
-    Performs token validation, version check, and account status checks.
+    Retrieve the current authenticated user with Redis caching.
+    Cache only after validation (token version, account status).
     """
-
     try:
         payload = decode_token(token)
-        user_email = payload.get("sub")
-        token_version = payload.get("ver")
+        user_email: str | None = payload.get("sub")
+        token_version: int | None = payload.get("ver")
 
         if not user_email:
             CustomException.e401_unauthorized("Invalid authentication credentials.")
 
-        user = await user_repo.get_by_email(user_email)
+        cache_key = f"user_current:{user_email}"
 
-        if not user:
-            CustomException.e401_unauthorized("No account found with this email.")
+        async def fetch_user():
+            _user = await user_repo.get_by_email(user_email)
+            if not _user:
+                CustomException.e401_unauthorized("No account found with this email.")
+            return _user
 
-        # Token version check
+        user_data = await cache_or_get(
+            redis=redis,
+            key=cache_key,
+            fetch_func=fetch_user,
+            ttl=600
+        )
+
+        # Reconstruct Pydantic model
+        user = User(**user_data) if isinstance(user_data, dict) else user_data
+
         if token_version != user.token_version:
+            await invalidate_cache(redis, cache_key)
             CustomException.e401_unauthorized("Token has been invalidated. Please log in again.")
 
-        # Account status checks
         if not user.is_verified:
             CustomException.e403_forbidden("Your account is not verified.")
 
@@ -83,8 +101,9 @@ async def get_current_user(
 
         return user
 
-    except Exception:
-        return CustomException.e401_unauthorized("Could not validate credentials.")
+    except Exception as e:
+        raise CustomException.e401_unauthorized("Could not validate credentials.")
+
 
 
 # ========================

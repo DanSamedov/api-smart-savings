@@ -62,7 +62,7 @@ async def update_user_info(
     Raises:
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    response = await user_service.update_user_details(update_request=update_request, current_user=current_user)
+    response = await user_service.update_user_details(redis=request.app.state.redis, update_request=update_request, current_user=current_user)
     msg = response.get("message")
 
     return standard_response(
