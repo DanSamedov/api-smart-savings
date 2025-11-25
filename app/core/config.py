@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     POSTGRES_USER: Optional[str] = None
     POSTGRES_PASSWORD: Optional[str] = None
     POSTGRES_DB: Optional[str] = None
+    # CACHING
+    REDIS_URL: Optional[str] = None
+    CACHE_TTL: Optional[int] = 300
     # SECURITY
     JWT_SECRET_KEY: Optional[str] = None
     JWT_EXPIRATION_TIME: Optional[int] = None

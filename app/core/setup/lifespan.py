@@ -1,6 +1,5 @@
 # app/core/setup/lifespan.py
 
-import asyncio
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -23,9 +22,12 @@ async def run_lifespan(app: FastAPI):
     from app.core.middleware.logging import cleanup_old_logs
     from app.core.tasks.cron_jobs import anonymize_soft_deleted_users
     from app.infra.database.session import set_utc_timezone
+    from app.core.setup.redis import redis_client
 
     print(f"\n[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
-    # --- Development: setup test users ---
+
+    app.state.redis = redis_client
+
     if settings.APP_ENV == "development":
         # 1. Initialize test accounts if missing
         await init_test_accounts()
@@ -35,7 +37,7 @@ async def run_lifespan(app: FastAPI):
         # await anonymize_soft_deleted_users()
 
     # --- General startup tasks ---
-    cleanup_old_logs()  # Cleanup old log files
+    cleanup_old_logs()
     await set_utc_timezone()  # Ensure DB session uses UTC timezone
 
     # --- Scheduler for production / recurring jobs ---
@@ -62,4 +64,5 @@ async def run_lifespan(app: FastAPI):
 
     # --- Shutdown tasks ---
     scheduler.shutdown()
+    await app.state.redis.close()
     print("[SHUTDOWN INFO] Scheduler shut down\n", flush=True)

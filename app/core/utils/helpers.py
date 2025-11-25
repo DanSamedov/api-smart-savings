@@ -25,6 +25,11 @@ def mask_email(email: str) -> str:
     except Exception:
         return "****@****"
 
+def mask_data(data: str) -> str:
+    """Mask given data (str) for logging."""
+    visible = 12 if len(data) > 12 else len(data)
+    return data[:visible] + "*" * (len(data) - visible)
+
 def transform_time(time: datetime) -> str:
     """Return a user-friendly time as a string."""
     local_dt = time.astimezone(ZoneInfo("Europe/Warsaw"))
