@@ -3,11 +3,12 @@
 from typing import Any
 
 from fastapi import Request, APIRouter, Depends, status, BackgroundTasks
+from redis.asyncio import Redis
 
 from app.modules.user.models import User
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.response import standard_response
-from app.api.dependencies import get_current_user, get_user_service
+from app.api.dependencies import get_current_user, get_user_service, get_redis
 from app.modules.user.service import UserService
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 
@@ -42,11 +43,42 @@ async def get_user_info(
     )
     
 
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+async def change_user_password(
+        request: Request,
+        change_password_request: ChangePasswordRequest,
+        background_tasks: BackgroundTasks,
+        current_user: User = Depends(get_current_user),
+        user_service: UserService = Depends(get_user_service)
+) -> dict[str, Any]:
+    """
+    Update currently authenticated user password, requires current password for verification.
+
+    Args:
+        change_password_request (ChangePasswordRequest): Schema for password change (current_password, new_password).
+
+    Returns:
+        dict(str, Any): Success message indicating password change.
+
+    Raises:
+        HTTPException: 403 Forbidden if the provided 'current_password' is invalid.
+        HTTPException: 429 Too Many Requests if the rate limit is exceeded.
+    """
+    await user_service.update_user_password(change_password_request=change_password_request, current_user=current_user, background_tasks=background_tasks)
+
+    return standard_response(
+        status="success",
+        message="You have successfully changed your password."
+    )
+
+
 @router.patch("/me", status_code=status.HTTP_200_OK)
 @limiter.limit("7/minute")
 async def update_user_info(
     request: Request,
     update_request: UserUpdate,
+    redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
@@ -62,42 +94,12 @@ async def update_user_info(
     Raises:
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    response = await user_service.update_user_details(redis=request.app.state.redis, update_request=update_request, current_user=current_user)
+    response = await user_service.update_user_details(redis=redis, update_request=update_request, current_user=current_user)
     msg = response.get("message")
 
     return standard_response(
         status="success",
         message=msg,
-    )
-
-
-@router.post("/change-password", status_code=status.HTTP_200_OK)
-@limiter.limit("3/minute")
-async def change_user_password(
-        request: Request,
-        change_password_request: ChangePasswordRequest,
-        background_tasks: BackgroundTasks,
-        current_user: User = Depends(get_current_user),
-        user_service: UserService = Depends(get_user_service)
-) -> dict[str, Any]:
-    """
-    Update currently authenticated user password, requires current password for verification.
-
-    Args:
-        change_password_request (ChangePasswordRequest): Schema for password change (current_password, new_password).
-     
-    Returns:
-        dict(str, Any): Success message indicating password change.
-
-    Raises:
-        HTTPException: 403 Forbidden if the provided 'current_password' is invalid.
-        HTTPException: 429 Too Many Requests if the rate limit is exceeded.
-    """
-    await user_service.update_user_password(change_password_request=change_password_request, current_user=current_user, background_tasks=background_tasks)
-    
-    return standard_response(
-        status="success",
-        message="You have successfully changed your password."
     )
 
 
@@ -107,6 +109,7 @@ async def change_user_email(
     request: Request,
     change_email_request: ChangeEmailRequest,
     background_tasks: BackgroundTasks,
+    redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ) -> dict[str, Any]:
@@ -133,6 +136,7 @@ async def change_user_email(
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
     await user_service.change_user_email(
+        redis=redis,
         change_email_request=change_email_request,
         current_user=current_user,
         background_tasks=background_tasks

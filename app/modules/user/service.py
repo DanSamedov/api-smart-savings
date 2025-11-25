@@ -97,6 +97,7 @@ class UserService:
 
     async def change_user_email(
         self,
+        redis: Redis,
         change_email_request: ChangeEmailRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None
@@ -137,6 +138,7 @@ class UserService:
         }
 
         await self.user_repo.update(current_user, updates)
+        await invalidate_cache(redis, f"user_current:{old_email}")
 
         # Send verification email
         await self.notification_manager.schedule(
