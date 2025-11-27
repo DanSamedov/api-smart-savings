@@ -17,11 +17,11 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 
 ## Contributors
 
-| Developer | GitHub Username | Responsibilities |
-|------------|-----------------|------------------|
-| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core backend & DevOps** - repo management, authentication, user profiles, wallets, group savings, GDPR, notifications, and CI/CD |
-| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core backend** - authentication, user profile, wallets, transactions, group savings, testing, and SaveBuddy AI |
-| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI, logging, notifications, GDPR, research and testing |
+| Developer | GitHub Username | Responsibilities                                                                                                                                       |
+|------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core backend, DevOps & Frontend** - repo management, authentication, profile & wallet management, savings, GDPR, notifications, CI/CD & frontend dev |
+| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core backend & Frontend** - authentication, profile & wallet management, transactions, savings, testing, SaveBuddy AI & frontend dev                 |
+| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI system, logging, notifications, GDPR, API metrics, research and testing                                   |
 
 ## Table of Contents
   
@@ -226,6 +226,13 @@ Few screenshots of endpoints, email templates & API responses.
 | **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
 | **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_&_gdpr.png) |
 | **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)              |
+
+### Frontend view
+| Description        | Preview                                                   |
+|--------------------|-----------------------------------------------------------|
+| **User Dashboard** | ![User Dashboard](./assets/images/frontend/dashboard.png) |
+| **Login Page**     | ![Login Page](./assets/images/frontend/login.png)         |
+
 
 ### Email Templates
 | Description           | Preview                                                              |
