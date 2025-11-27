@@ -230,7 +230,8 @@ Few screenshots of endpoints, email templates & API responses.
 ### Frontend view
 | Description        | Preview                                                   |
 |--------------------|-----------------------------------------------------------|
-| **User Dashboard** | ![User Dashboard](./assets/images/frontend/dashboard.png) |
+| **Landing Page**   | ![Landing Page](assets/images/frontend/landing.png)        |
+| **User Dashboard** | ![User Dashboard](assets/images/frontend/user_dashboard.png) |
 | **Login Page**     | ![Login Page](./assets/images/frontend/login.png)         |
 
 
