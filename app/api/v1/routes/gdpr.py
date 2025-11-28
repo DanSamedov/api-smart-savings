@@ -79,7 +79,7 @@ async def schedule_account_deletion(
 
 
 @router.post("/request-data-export", status_code=status.HTTP_202_ACCEPTED)
-@limiter.limit("2/hour")
+@limiter.limit("1/hour")
 async def request_data_export(request: Request, background_tasks: BackgroundTasks,
                                  current_user: User = Depends(get_current_user),
                                  gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:

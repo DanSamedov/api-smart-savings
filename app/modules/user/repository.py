@@ -20,9 +20,16 @@ class UserRepository:
         return user
 
     async def update(self, user: User, updates: dict) -> User:
-        """Update fields of an existing user"""
+        """
+        Update fields of a user safely, handling detached instances.
+        """
+        # Attach the object to the current session if it's detached
+        user = await self.db.merge(user)
+
+        # Apply updates
         for key, value in updates.items():
             setattr(user, key, value)
+
         await self.db.commit()
         await self.db.refresh(user)
         return user

@@ -23,9 +23,12 @@ class WalletRepository:
         await self.db.refresh(wallet)
 
     async def update(self, wallet: Wallet, updates: dict) -> Wallet:
-        """Update fields of a wallet"""
+        # Attach to session if detached
+        wallet = await self.db.merge(wallet)
+
         for key, value in updates.items():
             setattr(wallet, key, value)
+
         await self.db.commit()
         await self.db.refresh(wallet)
         return wallet

@@ -24,9 +24,14 @@ class GDPRRepository:
         return gdpr_request
 
     async def update_request(self, gdpr_request: GDPRRequest, updates: dict) -> GDPRRequest:
-        """Update fields of a GDPR request."""
+        """
+        Safely update a GDPRRequest, handling detached instances.
+        """
+        gdpr_request = await self.db.merge(gdpr_request)
+
         for key, value in updates.items():
             setattr(gdpr_request, key, value)
+
         await self.db.commit()
         await self.db.refresh(gdpr_request)
         return gdpr_request
