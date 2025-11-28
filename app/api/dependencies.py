@@ -137,3 +137,20 @@ async def get_wallet_service(db: AsyncSession = Depends(get_session)):
     transaction_repo = TransactionRepository(db)
     notification_manager = EmailNotificationService()
     return WalletService(wallet_repo, transaction_repo, notification_manager)
+
+
+# =======================
+# REPOSITORY
+# =======================
+async def get_user_repo(db: AsyncSession = Depends(get_session)):
+    """Dependency factory for user repository."""
+    return UserRepository(db)
+async def get_wallet_repo(db: AsyncSession = Depends(get_session)):
+    """Dependency factory for wallet repository."""
+    return WalletRepository(db)
+async def get_gdpr_repo(db: AsyncSession = Depends(get_session)):
+    """Dependency factory for gdpr repository."""
+    return GDPRRepository(db)
+
+
+
