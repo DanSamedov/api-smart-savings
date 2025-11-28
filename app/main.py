@@ -109,7 +109,7 @@ async def health_check(request: Request):
         message="API health status",
         data= {
             "uptime": app_metrics.uptime,
-            "hostname": f"{app_name.lower()}-api",
+            "hostname": f"api-{app_name.lower()}",
             "db_status": "running" if app_metrics.db_active else "down",
             "last_request_latency_ms": app_metrics.latest_response_latency,
             "system_metrics": app_metrics.system_metrics
