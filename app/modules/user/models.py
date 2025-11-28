@@ -28,7 +28,14 @@ class User(UserBase, table=True):
     """Extended user model with additional profile, status, and audit fields."""
     __tablename__ = "app_user"
 
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+            index=True
+        )
+    )
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),

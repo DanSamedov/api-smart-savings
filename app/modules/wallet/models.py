@@ -24,7 +24,15 @@ class Wallet(SQLModel, table=True):
     total_balance: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
     locked_amount: float = Field(default=0, sa_column=Column(Numeric(15, 4), nullable=False, server_default=text("0")))
 
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+            index=True
+        )
+    )
+
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
@@ -77,7 +85,15 @@ class Transaction(SQLModel, table=True):
     type: TransactionType = Field(sa_column=Column(SQLEnum(TransactionType, name="transaction_type_enum"), nullable=False))
     description: Optional[str] = None
     status: TransactionStatus = Field(sa_column=Column(SQLEnum(TransactionStatus, name="transaction_status_enum"), nullable=False, server_default=TransactionStatus.PENDING.value))
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc)))
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+            index=True
+        )
+    )
+
     executed_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
