@@ -34,7 +34,8 @@ class UserService:
             "role": current_user.role,
             "is_verified": current_user.is_verified,
             "preferred_currency": current_user.preferred_currency,
-            "preferred_language": current_user.preferred_language
+            "preferred_language": current_user.preferred_language,
+            "created_at": current_user.created_at
         }
 
         return data
