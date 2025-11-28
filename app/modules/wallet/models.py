@@ -33,6 +33,7 @@ class Wallet(SQLModel, table=True):
         )
     )
 
+
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
