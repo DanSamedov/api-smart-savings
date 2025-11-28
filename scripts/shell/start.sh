@@ -3,7 +3,7 @@ set -e
 
 echo "[START SCRIPT] (i) Waiting for database to be ready..."
 # Ensure POSTGRES_HOST, PORT, and USER are set in production env vars
-while ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+while ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$POSTGRES_USER"; do
   echo "[START SCRIPT] (i) Waiting for database connection..."
   sleep 2
 done
