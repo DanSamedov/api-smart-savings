@@ -95,7 +95,6 @@ async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
 
 
 @main_app.get("/health")
-@limiter.limit("7/minute")
 async def health_check(request: Request):
     """
     API Health check endpoint.
