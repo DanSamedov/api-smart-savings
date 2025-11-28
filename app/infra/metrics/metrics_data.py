@@ -65,7 +65,7 @@ async def get_db_status() -> bool:
 
     async with AsyncSessionLocal() as session:
         try:
-            session.execute(select(1))
+            await session.execute(select(1))
             return True
         except Exception:
             return False

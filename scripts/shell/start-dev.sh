@@ -3,7 +3,7 @@ set -euo pipefail
 
 # wait for DB
 echo "[START SCRIPT] (i) Waiting for database..."
-until pg_isready -h "${POSTGRES_HOST:-db}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-postgres}"; do
+until pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${POSTGRES_USER:-postgres}"; do
   echo "[START SCRIPT] (i) Waiting for database connection..."
   sleep 1
 done
