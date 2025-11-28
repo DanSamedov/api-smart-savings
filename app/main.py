@@ -1,6 +1,6 @@
 # app/setup/main.py
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from app.core.middleware.rate_limiter import limiter
 from app.core.setup.instance import application
 from app.api.dependencies import authenticate_admin
 from app.api.routers import main_router
@@ -66,7 +67,8 @@ main_app.add_exception_handler(Exception, error_handlers.generic_exception_handl
 # BASE ROUTES
 # =======================================
 @main_app.get("/")
-def root():
+@limiter.limit("10/minute")
+def root(request: Request):
     """
     Base app endpoint.
     """
@@ -93,7 +95,8 @@ async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
 
 
 @main_app.get("/health")
-async def health_check():
+@limiter.limit("7/minute")
+async def health_check(request: Request):
     """
     API Health check endpoint.
     """
