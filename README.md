@@ -228,11 +228,12 @@ Few screenshots of endpoints, email templates & API responses.
 | **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)              |
 
 ### Frontend view
-| Description        | Preview                                                   |
-|--------------------|-----------------------------------------------------------|
-| **Landing Page**   | ![Landing Page](assets/images/frontend/landing.png)        |
-| **User Dashboard** | ![User Dashboard](assets/images/frontend/user_dashboard.png) |
-| **Login Page**     | ![Login Page](./assets/images/frontend/login.png)         |
+| Description             | Preview                                                                |
+|-------------------------|------------------------------------------------------------------------|
+| **Landing Page**        | ![Landing Page](assets/images/frontend/landing.png)                    |
+| **User Dashboard**      | ![User Dashboard](assets/images/frontend/user_dashboard.png)           |
+| **Data Report Request** | ![Data Report Request](./assets/images/frontend/gdpr_data_request.png) |
+| **Login Page**          | ![Login Page](./assets/images/frontend/login.png)                      |
 
 
 ### Email Templates
