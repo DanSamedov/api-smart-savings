@@ -3,6 +3,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
+from sqlmodel import Field
 
 from app.modules.shared.helpers import validate_password_strength
 
@@ -11,6 +12,7 @@ class UserUpdate(BaseModel):
     """Schema for partial update of user data."""
 
     full_name: Optional[str] = None
+    stag: Optional[str] = Field(min_length=5, max_length=9, regex=r'^(?=[a-z0-9_]{5,9}$)(?=[^_]*_?[^_]*$)(?=.*[a-z])[a-z0-9_]+$')
     preferred_currency: Optional[str] = None
     preferred_language: Optional[str] = None
     

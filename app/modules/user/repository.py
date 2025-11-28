@@ -47,6 +47,14 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
+    async def get_by_stag(self, stag: str) -> Optional[User]:
+        """Retrieve a User by stag"""
+        if not stag:
+            return None
+        stmt = select(User).where(User.stag == stag)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_email_or_none(self, email: str) -> Optional[User]:
         """Retrieve a User by email or return None"""
         stmt = select(User).where(User.email == email)

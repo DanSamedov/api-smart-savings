@@ -15,6 +15,8 @@ class UserBase(SQLModel):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(index=True, unique=True)
     full_name: Optional[str] = Field(default=None)
+    stag: Optional[str] = Field(default=None, index=True, unique=True, min_length=5, max_length=9, regex=r'^(?=[a-z0-9_]{5,9}$)(?=[^_]*_?[^_]*$)(?=.*[a-z])[a-z0-9_]+$')
+
     password_hash: str
     role: Role = Field(sa_column=Column(SQLEnum(Role, name="role_enum"), nullable=False, server_default=Role.USER.value))
     is_verified: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
