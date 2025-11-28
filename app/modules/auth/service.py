@@ -95,9 +95,10 @@ class AuthService:
         ):
             raise CustomException.e400_bad_request("Verification code is invalid or expired.")
 
+        updates = {"is_verified": True, "verification_code": None, "verification_code_expires_at": None}
         await self.user_repo.update(
             user,
-            {"is_verified": True, "verification_code": None, "verification_code_expires_at": None},
+            updates
         )
 
         wallet = Wallet(user_id=user.id)
@@ -124,9 +125,10 @@ class AuthService:
         verification_code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
+        updates = {"verification_code": verification_code, "verification_code_expires_at": expires_at}
         await self.user_repo.update(
             user,
-            {"verification_code": verification_code, "verification_code_expires_at": expires_at},
+            updates
         )
 
         await self.notification_manager.schedule(

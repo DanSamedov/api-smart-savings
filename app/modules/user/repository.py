@@ -1,10 +1,12 @@
 # app/modules/user/repository.py
 
 from typing import Optional
+from uuid import UUID
 
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.utils.helpers import coerce_datetimes
 from app.modules.user.models import User
 
 
@@ -24,17 +26,16 @@ class UserRepository:
         Update fields of a user safely, handling detached instances.
         """
         # Attach the object to the current session if it's detached
-        user = await self.db.merge(user)
-
-        # Apply updates
-        for key, value in updates.items():
-            setattr(user, key, value)
-
+        updates = coerce_datetimes(updates,
+                                   ["created_at", "updated_at", "last_login_at", "verification_code_expires_at",
+                                    "deleted_at"])
+        await self.db.merge(user)
+        for k, v in updates.items():
+            setattr(user, k, v)
         await self.db.commit()
         await self.db.refresh(user)
-        return user
 
-    async def get_by_id(self, id: str) -> Optional[User]:
+    async def get_by_id(self, id: UUID) -> Optional[User]:
         """Retrieve a User by ID"""
         stmt = select(User).where(User.id == id)
         result = await self.db.execute(stmt)

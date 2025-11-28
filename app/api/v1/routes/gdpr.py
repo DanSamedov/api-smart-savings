@@ -2,14 +2,17 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Request, BackgroundTasks, status, Depends
+from fastapi import APIRouter, Request, BackgroundTasks, status, Depends, HTTPException
+from redis.asyncio import Redis
 
-from app.api.dependencies import get_current_user, get_gdpr_service
+from app.api.dependencies import get_current_user, get_gdpr_service, get_redis, get_user_repo
 from app.core.middleware.rate_limiter import limiter
+from app.core.utils.exceptions import CustomException
 from app.core.utils.response import standard_response
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
 from app.modules.gdpr.service import GDPRService
 from app.modules.user.models import User
+from app.modules.user.repository import UserRepository
 
 router = APIRouter()
 
@@ -20,30 +23,26 @@ async def request_account_deletion(
         request: Request,
         background_tasks: BackgroundTasks,
         current_user: User = Depends(get_current_user),
-        gdpr_service: GDPRService = Depends(get_gdpr_service)
-) -> dict[str, Any]:
+        user_repo: UserRepository = Depends(get_user_repo),
+        gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:
     """
     Request a verification code for account deletion.
 
     Sends a one-time verification code to the email of the currently authenticated user.
     The code is required to confirm account deletion.
-
-    Args:
-        None
-
-    Returns:
-        dict(str, Any): Success message indicating that the verification code has been sent.
-
-    Raises:
-        HTTPException: 403 Forbidden if the account is already scheduled for deletion.
-        HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    await gdpr_service.request_delete_account(current_user=current_user, background_tasks=background_tasks)
+    # Always use a DB-attached instance for updates to avoid caching issues
+    user = await user_repo.get_by_id(current_user.id)
+    if not user:
+        raise CustomException.e404_not_found("User not found.")
+
+    await gdpr_service.request_delete_account(current_user=user, background_tasks=background_tasks)
 
     return standard_response(
         status="success",
         message="Verification code sent to email, verify process to schedule account deletion."
     )
+
 
 
 @router.post("/schedule-account-deletion", status_code=status.HTTP_202_ACCEPTED)
@@ -53,6 +52,7 @@ async def schedule_account_deletion(
         background_tasks: BackgroundTasks,
         deletion_request: VerificationCodeOnlyRequest,
         current_user: User = Depends(get_current_user),
+        user_repo: UserRepository = Depends(get_user_repo),
         gdpr_service: GDPRService = Depends(get_gdpr_service)
 ) -> dict[str, Any]:
     """
@@ -69,7 +69,11 @@ async def schedule_account_deletion(
         HTTPException: 403 Forbidden if the account is already scheduled for deletion.
         HTTPException: 429 Too Many Requests if the rate limit is exceeded.
     """
-    await gdpr_service.schedule_account_delete(request=request, current_user=current_user,
+    user = await user_repo.get_by_id(current_user.id)
+    if not user:
+        raise CustomException.e404_not_found("User not found.")
+
+    await gdpr_service.schedule_account_delete(request=request, current_user=user,
                                                deletion_request=deletion_request, background_tasks=background_tasks)
 
     return standard_response(
@@ -82,7 +86,12 @@ async def schedule_account_deletion(
 @limiter.limit("1/hour")
 async def request_data_export(request: Request, background_tasks: BackgroundTasks,
                                  current_user: User = Depends(get_current_user),
+                                 user_repo: UserRepository = Depends(get_user_repo),
                                  gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:
+    user = await user_repo.get_by_id(current_user.id)
+    if not user:
+        raise CustomException.e404_not_found("User not found.")
+
     await gdpr_service.request_export_of_data(request=request, current_user=current_user, background_tasks=background_tasks)
 
     return standard_response(

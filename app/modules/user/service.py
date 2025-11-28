@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import Request, BackgroundTasks
 from redis.asyncio import Redis
 
+from app.core.middleware.logging import logger
 from app.core.utils.cache import invalidate_cache
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
@@ -67,9 +68,10 @@ class UserService:
         
         new_hashed_password = hash_password(change_password_request.new_password)
         # Update via repository
+        updates = {"password_hash": new_hashed_password}
         await self.user_repo.update(
             current_user,
-            {"password_hash": new_hashed_password},
+            updates,
         )
 
         # Send password change notification email
@@ -137,7 +139,6 @@ class UserService:
             "verification_code_expires_at": expires_at,
             "token_version": current_user.token_version + 1,  # invalidate existing tokens
         }
-
         await self.user_repo.update(current_user, updates)
         await invalidate_cache(redis, f"user_current:{old_email}")
 

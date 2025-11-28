@@ -56,13 +56,13 @@ class GDPRService:
 
         code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-
-        await self.user_repo.update(
-            current_user,
-            {
+        updates = {
                 "verification_code": code,
                 "verification_code_expires_at": expires_at,
-            },
+            }
+        await self.user_repo.update(
+            current_user,
+            updates
         )
 
         # Send deletion verification email

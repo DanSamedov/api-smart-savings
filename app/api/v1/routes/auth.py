@@ -6,14 +6,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.middleware.rate_limiter import limiter
+from app.core.utils.exceptions import CustomException
 from app.infra.database.session import get_session
-from app.api.dependencies import get_current_user, get_auth_service
+from app.api.dependencies import get_current_user, get_auth_service, get_user_repo
 from app.modules.auth.schemas import (EmailOnlyRequest, LoginRequest,
                                       RegisterRequest, ResetPasswordRequest,
                                       VerifyEmailRequest)
 from app.modules.user.models import User
 from app.modules.auth.service import AuthService
 from app.core.utils.response import standard_response, LoginResponse, LoginData
+from app.modules.user.repository import UserRepository
 
 router = APIRouter()
 
@@ -197,6 +199,7 @@ async def request_password_reset(
 @limiter.limit("3/minute")
 async def logout_all_devices(
     request: Request,
+    user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
 ) -> dict[str, Any]:
@@ -213,8 +216,12 @@ async def logout_all_devices(
         HTTPException: 401 Unauthorized if not authenticated
         HTTPException: 429 Too Many Requests if rate limit exceeded
     """
+    user = await user_repo.get_by_id(current_user.id)
+    if not user:
+        raise CustomException.e404_not_found("User not found.")
+
     await auth_service.logout_all_devices(
-        user=current_user
+        user=user
     )
     
     return standard_response(
