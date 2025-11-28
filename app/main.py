@@ -7,7 +7,6 @@ from fastapi.openapi.utils import get_openapi
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
-from datetime import datetime
 
 from app.core.setup.instance import application
 from app.api.dependencies import authenticate_admin
@@ -16,27 +15,14 @@ from app.core.config import settings
 from app.core.middleware.logging import LoggingMiddleware
 from app.core.utils import error_handlers
 from app.core.utils.response import standard_response
-from app.core.utils.helpers import get_uptime, get_system_metrics, get_db_status
-
+from app.infra.metrics.metrics_data import Metrics_V2, get_uptime, get_system_metrics, get_db_status
 
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
 
 main_app = application
+app_metrics = Metrics_V2()
 
-class Metrics:
-    
-    def __init__(self):
-        self.startup_time: datetime = datetime.now()
-        self.uptime: str = ''
-        self.system_metrics: dict = {}
-        self.db_status: bool = False
-        self.latest_response_latency: float = 0.0
-
-    def set_latest_response_latency(self, latency: float):
-        self.latest_response_latency = latency
-
-metrics = Metrics()
 # =======================================
 # MIDDLEWARE
 # =======================================
@@ -106,22 +92,23 @@ async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
     return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=main_app.routes)
 
 
-@main_app.get("/health", include_in_schema=False)
+@main_app.get("/health")
 async def health_check():
     """
-    Health check endpoint.
+    API Health check endpoint.
     """
-    metrics.uptime = get_uptime(metrics.startup_time)
-    metrics.system_metrics = get_system_metrics()
-    metrics.db_status = await get_db_status()
+    app_metrics.uptime = get_uptime(app_metrics.startup_time)
+    app_metrics.system_metrics = get_system_metrics()
+    app_metrics.db_active = await get_db_status()
+
     return standard_response(
         status="success",
         message="API health status",
         data= {
-            "uptime": metrics.uptime,
-            "hostname": settings.DB_HOST,
-            "db_status": "running" if metrics.db_status else "down",
-            "system_metrics": metrics.system_metrics,
-            "last_request_latency_ms": metrics.latest_response_latency,
+            "uptime": app_metrics.uptime,
+            "hostname": f"{app_name.lower()}-api",
+            "db_status": "running" if app_metrics.db_active else "down",
+            "last_request_latency_ms": app_metrics.latest_response_latency,
+            "system_metrics": app_metrics.system_metrics
         }
     )
