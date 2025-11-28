@@ -76,8 +76,8 @@ def get_mail_config():
         MAIL_FROM=mail_from,  # type: ignore
         MAIL_PORT=settings.SMTP_PORT,  # type: ignore
         MAIL_SERVER=settings.SMTP_HOST,  # type: ignore
-        MAIL_STARTTLS=True,
-        MAIL_SSL_TLS=False,
+        MAIL_STARTTLS=False,
+        MAIL_SSL_TLS=True,
         USE_CREDENTIALS=True,
         TEMPLATE_FOLDER=TEMPLATES_DIR,
     )
