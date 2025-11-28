@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi.templating import Jinja2Templates
-from fastapi_mail import ConnectionConfig
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
@@ -52,11 +51,9 @@ class Settings(BaseSettings):
     # GOOGLE
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
-
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USERNAME: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
+    # MAILING
+    RESEND_API_KEY: Optional[str] = None
+    MAIL_SENDER: Optional[str] = None
     # SCHEDULE
     HARD_DELETE_RETENTION_DAYS: Optional[int] = 14
     HARD_DELETE_CRON_INTERVAL_HOURS: Optional[int] = 24
@@ -65,19 +62,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-
-def get_mail_config():
-    mail_from = f"{settings.APP_NAME} <{settings.SMTP_USERNAME}>"
-
-    return ConnectionConfig(
-        MAIL_USERNAME=settings.SMTP_USERNAME,  # type: ignore
-        MAIL_PASSWORD=settings.SMTP_PASSWORD,  # type: ignore
-        MAIL_FROM=mail_from,  # type: ignore
-        MAIL_PORT=settings.SMTP_PORT,  # type: ignore
-        MAIL_SERVER=settings.SMTP_HOST,  # type: ignore
-        MAIL_STARTTLS=False,
-        MAIL_SSL_TLS=True,
-        USE_CREDENTIALS=True,
-        TEMPLATE_FOLDER=TEMPLATES_DIR,
-    )

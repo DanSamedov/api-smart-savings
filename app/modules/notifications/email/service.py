@@ -1,13 +1,14 @@
 # app/modules/notifications/email/service.py
-
+import asyncio
+from functools import partial
 from typing import Optional, Dict, List
+import resend
 from datetime import datetime, timezone
 from fastapi import UploadFile
-from fastapi_mail import FastMail, MessageSchema, MessageType
 from jinja2 import Template
 from pydantic import ValidationError
 
-from app.core.config import TEMPLATES_DIR, get_mail_config
+from app.core.config import TEMPLATES_DIR, settings
 from app.core.middleware.logging import logger
 from app.core.utils.helpers import mask_email
 from app.modules.notifications.email.registry import EMAIL_TEMPLATES
@@ -15,28 +16,55 @@ from app.modules.notifications.schemas import frontend_url, app_name, BaseEmailC
 from app.modules.notifications.service import NotificationService
 from app.modules.shared.enums import NotificationType
 
-mail_config = get_mail_config()
-fm = FastMail(mail_config)
+
+resend.api_key = settings.RESEND_API_KEY
+
 
 class EmailNotificationService(NotificationService):
-    """Concrete implementation for Email notifications."""
+    """Concrete implementation for Email notifications using Resend (HTTP API)."""
 
     async def _render_template(self, template_rel_path: str, context: Dict) -> str:
         template_path = TEMPLATES_DIR / template_rel_path
         template_str = template_path.read_text()
         return Template(template_str).render(context)
 
-    async def _send_email(self, recipients: List[str], subject: str, template_path: str, context: Dict, attachments: Optional[List[UploadFile]] = None):
+    async def _send_email(self, recipients: List[str], subject: str, template_path: str, context: Dict,
+                          attachments: Optional[List[UploadFile]] = None):
         try:
-            body = await self._render_template(template_path, context)
-            message = MessageSchema(
-                subject=subject,
-                recipients=recipients,
-                body=body,
-                subtype=MessageType.html,
-                attachments=attachments or [],
+            # Render HTML Body
+            html_content = await self._render_template(template_path, context)
+
+            # Process Attachments (Convert FastAPI UploadFile to Resend format)
+            formatted_attachments = []
+            if attachments:
+                for file in attachments:
+                    content = await file.read()
+                    formatted_attachments.append({
+                        "filename": file.filename,
+                        "content": list(content)  # Resend expects a list of integers (bytes)
+                    })
+                    await file.seek(0)  # Reset file cursor just in case
+
+            # Construct Payload
+            sender_identity = f"{settings.APP_NAME} <{settings.MAIL_SENDER}>"
+
+            email_params = {
+                "from": sender_identity,
+                "to": recipients,
+                "subject": subject,
+                "html": html_content,
+                "attachments": formatted_attachments if attachments else None
+            }
+
+            # Run the blocking call in a separate thread
+            loop = asyncio.get_running_loop()
+
+            # Use 'partial' to pass arguments to the function
+            await loop.run_in_executor(
+                None,  # Uses default thread pool
+                partial(resend.Emails.send, email_params)
             )
-            await fm.send_message(message=message)
+
         except Exception as e:
             logger.exception(f"Failed to send email '{subject}' to {mask_email(recipients[0])}: {e}")
 
@@ -64,7 +92,8 @@ class EmailNotificationService(NotificationService):
 
         return enriched
 
-    async def send(self, notification_type: NotificationType, recipients: List[str], context: Optional[Dict] = None, attachments: Optional[List[UploadFile]] = None):
+    async def send(self, notification_type: NotificationType, recipients: List[str], context: Optional[Dict] = None,
+                   attachments: Optional[List[UploadFile]] = None):
         context = context or {}
 
         if notification_type not in EMAIL_TEMPLATES:
