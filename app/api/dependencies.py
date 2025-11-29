@@ -22,6 +22,9 @@ from app.core.utils.exceptions import CustomException
 from app.modules.user.service import UserService
 from app.modules.wallet.repository import WalletRepository, TransactionRepository
 from app.modules.wallet.service import WalletService
+from app.modules.shared.enums import Role
+from app.modules.rbac.repository import RBACRepository
+from app.modules.rbac.service import RBACService
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
@@ -105,6 +108,17 @@ async def get_current_user(
         raise CustomException.e401_unauthorized("Could not validate credentials.")
 
 
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Validate that the current user has administrative privileges.
+    """
+    if current_user.role not in [Role.ADMIN, Role.SUPER_ADMIN]:
+        CustomException.e403_forbidden("You do not have permission to access this resource.")
+    return current_user
+
+
 
 # ========================
 # SERVICES
@@ -138,6 +152,11 @@ async def get_wallet_service(db: AsyncSession = Depends(get_session)):
     notification_manager = EmailNotificationService()
     return WalletService(wallet_repo, transaction_repo, notification_manager)
 
+async def get_rbac_service(db: AsyncSession = Depends(get_session)):
+    """Dependency factory for rbac service."""
+    repo = RBACRepository(db)
+    return RBACService(repo)
+
 
 # =======================
 # REPOSITORY
@@ -151,6 +170,9 @@ async def get_wallet_repo(db: AsyncSession = Depends(get_session)):
 async def get_gdpr_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for gdpr repository."""
     return GDPRRepository(db)
+async def get_rbac_repo(db: AsyncSession = Depends(get_session)):
+    """Dependency factory for rbac repository."""
+    return RBACRepository(db)
 
 
 
