@@ -189,9 +189,10 @@ class WalletService:
         if not wallet:
             raise CustomException.e404_not_found("Wallet not found. Please contact support.")
 
-        min_deposit = settings.MIN_WALLET_DEPOSIT_AMOUNT
-        if transaction_request.amount < min_deposit:
-            raise CustomException.e400_bad_request(f"Minimum deposit amount is {min_deposit} {current_user.preferred_currency.value}")
+        min_deposit = settings.MIN_WALLET_TRANSACTION_AMOUNT
+        max_deposit = settings.MAX_WALLET_TRANSACTION_AMOUNT
+        if transaction_request.amount < min_deposit or transaction_request.amount > max_deposit:
+            raise CustomException.e400_bad_request(f"Transaction amount must be between {min_deposit} and {max_deposit} {current_user.preferred_currency.value}")
 
         new_balance = float(wallet.total_balance) + float(transaction_request.amount)
         wallet = await self.wallet_repo.update(wallet, {"total_balance": new_balance})
@@ -228,10 +229,11 @@ class WalletService:
 
         if not wallet:
             raise CustomException.e404_not_found("Wallet not found. Please contact support.")
-
-        min_withdrawal = settings.MIN_WALLET_WITHDRAWAL_AMOUNT
-        if transaction_request.amount < min_withdrawal:
-            raise CustomException.e400_bad_request(f"Minimum withdrawal amount is {min_withdrawal} {current_user.preferred_currency.value}")
+    
+        min_withdrawal = settings.MIN_WALLET_TRANSACTION_AMOUNT
+        max_withdrawal = settings.MAX_WALLET_TRANSACTION_AMOUNT
+        if transaction_request.amount < min_withdrawal or transaction_request.amount > max_withdrawal:
+            raise CustomException.e400_bad_request(f"Transaction amount must be between {min_withdrawal} and {max_withdrawal} {current_user.preferred_currency.value}")
 
         available_balance = wallet.available_balance
         if available_balance < float(transaction_request.amount):
