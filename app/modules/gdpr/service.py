@@ -12,7 +12,8 @@ from app.core.config import settings
 from app.core.middleware.logging import logger
 from app.core.security.hashing import hash_ip
 from app.core.utils.exceptions import CustomException
-from app.core.utils.helpers import get_client_ip, generate_secure_code, transform_time
+from app.core.utils.helpers import get_client_ip
+from app.modules.shared.helpers import generate_secure_code, transform_time
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
 from app.modules.user.models import User
 from app.modules.shared.enums import NotificationType, GDPRRequestType, GDPRRequestStatus

@@ -12,7 +12,7 @@ from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 from app.modules.shared.enums import NotificationType
 from app.core.security.hashing import hash_password, verify_password
-from app.core.utils.helpers import generate_secure_code
+from app.modules.shared.helpers import generate_secure_code
 
 
 class UserService:

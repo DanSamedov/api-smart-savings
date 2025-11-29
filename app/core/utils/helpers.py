@@ -1,15 +1,7 @@
 # app/core/utils/helpers.py
 
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
-import secrets
-import string
-import httpx
 
-
-def generate_secure_code(length=6):
-    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 def mask_email(email: str) -> str:
     """
@@ -32,17 +24,12 @@ def mask_data(data: str) -> str:
     return data[:visible] + "*" * (len(data) - visible)
 
 def coerce_datetimes(updates: dict[str, Any], datetime_fields: list[str]) -> dict[str, Any]:
+    from datetime import datetime
     for field in datetime_fields:
         if field in updates and isinstance(updates[field], str):
             updates[field] = datetime.fromisoformat(updates[field])
     return updates
 
-
-def transform_time(time: datetime) -> str:
-    """Return a user-friendly time as a string."""
-    local_dt = time.astimezone(ZoneInfo("Europe/Warsaw"))
-    transformed = local_dt.strftime("%b %d, %Y %I:%M %p %Z")
-    return transformed
 
 def get_client_ip(request) -> str:
     """Get real client IP, considering proxies."""
@@ -50,22 +37,3 @@ def get_client_ip(request) -> str:
     if x_forwarded_for:
         return x_forwarded_for.split(",")[0].strip()
     return request.client.host
-
-async def get_location_from_ip(ip: str) -> str:
-    """
-    Async IP geolocation lookup (non-blocking).
-    """
-    url = f"https://ipapi.co/{ip}/json/"
-    try:
-        async with httpx.AsyncClient(timeout=1.5) as client:
-            resp = await client.get(url)
-            data = resp.json()
-        city = data.get("city")
-        country = data.get("country_name")
-        if city and country:
-            return f"{city}, {country}"
-        elif country:
-            return country
-        return "Unknown location"
-    except Exception:
-        return "Unknown location"
