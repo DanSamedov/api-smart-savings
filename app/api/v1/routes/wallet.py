@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get("/balance", status_code=status.HTTP_200_OK, response_model=WalletBalanceResponse)
-@limiter.limit("10/minute")
+@limiter.limit("15/minute")
 async def get_wallet_balance(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -31,7 +31,7 @@ async def get_wallet_balance(
 
 
 @router.get("/transactions", status_code=status.HTTP_200_OK)
-@limiter.limit("10/minute")
+@limiter.limit("15/minute")
 async def get_wallet_transactions(
     request: Request,
     redis: Redis = Depends(get_redis),

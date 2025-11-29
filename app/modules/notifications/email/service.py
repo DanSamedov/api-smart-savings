@@ -1,27 +1,25 @@
 # app/modules/notifications/email/service.py
-import asyncio
-from functools import partial
 from typing import Optional, Dict, List
-import resend
 from datetime import datetime, timezone
 from fastapi import UploadFile
 from jinja2 import Template
 from pydantic import ValidationError
 
-from app.core.config import TEMPLATES_DIR, settings
+from app.core.config import TEMPLATES_DIR
 from app.core.middleware.logging import logger
 from app.core.utils.helpers import mask_email
 from app.modules.notifications.email.registry import EMAIL_TEMPLATES
+from app.modules.notifications.email.providers import EmailProviderFactory
 from app.modules.notifications.schemas import frontend_url, app_name, BaseEmailContext
 from app.modules.notifications.service import NotificationService
 from app.modules.shared.enums import NotificationType
 
 
-resend.api_key = settings.RESEND_API_KEY
-
-
 class EmailNotificationService(NotificationService):
-    """Concrete implementation for Email notifications using Resend (HTTP API)."""
+    """Concrete implementation for Email notifications using configured provider."""
+
+    def __init__(self):
+        self.provider = EmailProviderFactory.get_provider()
 
     async def _render_template(self, template_rel_path: str, context: Dict) -> str:
         template_path = TEMPLATES_DIR / template_rel_path
@@ -31,42 +29,11 @@ class EmailNotificationService(NotificationService):
     async def _send_email(self, recipients: List[str], subject: str, template_path: str, context: Dict,
                           attachments: Optional[List[UploadFile]] = None):
         try:
-            # Render HTML Body
             html_content = await self._render_template(template_path, context)
-
-            # Process Attachments (Convert FastAPI UploadFile to Resend format)
-            formatted_attachments = []
-            if attachments:
-                for file in attachments:
-                    content = await file.read()
-                    formatted_attachments.append({
-                        "filename": file.filename,
-                        "content": list(content)  # Resend expects a list of integers (bytes)
-                    })
-                    await file.seek(0)  # Reset file cursor just in case
-
-            # Construct Payload
-            sender_identity = f"{settings.APP_NAME} <{settings.MAIL_SENDER}>"
-
-            email_params = {
-                "from": sender_identity,
-                "to": recipients,
-                "subject": subject,
-                "html": html_content,
-                "attachments": formatted_attachments if attachments else None
-            }
-
-            # Run the blocking call in a separate thread
-            loop = asyncio.get_running_loop()
-
-            # Use 'partial' to pass arguments to the function
-            await loop.run_in_executor(
-                None,  # Uses default thread pool
-                partial(resend.Emails.send, email_params)
-            )
+            await self.provider.send_email(recipients, subject, html_content, attachments)
 
         except Exception as e:
-            logger.exception(f"Failed to send email '{subject}' to {mask_email(recipients[0])}: {e}")
+            logger.error(f"Failed to send email '{subject}' to {mask_email(recipients[0])}. Check provider logs for details.")
 
     def _enrich_context(self, notification_type: NotificationType, context: Dict) -> Dict:
         """Autofill missing or computed context values."""

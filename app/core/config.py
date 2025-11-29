@@ -52,13 +52,21 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     # MAILING
+    EMAIL_PROVIDER: str = "resend"  # Options: "resend", "smtp"
     RESEND_API_KEY: Optional[str] = None
-    MAIL_SENDER: Optional[str] = None
+    MAIL_FROM_EMAIL: Optional[str] = None
+    # SMTP Settings
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: Optional[int] = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
     # SCHEDULE
     HARD_DELETE_RETENTION_DAYS: Optional[int] = 14
     HARD_DELETE_CRON_INTERVAL_HOURS: Optional[int] = 24
 
-    model_config = ConfigDict(env_file=".env")  # type: ignore
+    model_config = ConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

@@ -100,7 +100,7 @@ class AuthService:
             user,
             updates
         )
-        wallet = Wallet(user_id=user.id, total_balance=10000, locked_amount=1500) # Dummy funds for new user - App prototype
+        wallet = Wallet(user_id=user.id, total_balance=10) # Dummy welcome bonus for new users
         await self.wallet_repo.create(wallet)
 
         await self.notification_manager.schedule(

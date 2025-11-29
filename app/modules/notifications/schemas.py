@@ -14,8 +14,8 @@ class BaseEmailContext(BaseModel):
     """Base schema with flexible extras."""
     app_name: str = app_name
 
-    class Config:
-        extra = 'allow'
+    model_config = ConfigDict(extra="allow")
+
 
 
 class VerificationEmailContext(BaseEmailContext):
