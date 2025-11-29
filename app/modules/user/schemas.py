@@ -1,11 +1,14 @@
 # app/modules/user/schemas.py
 
 from typing import Optional
+from datetime import datetime
+from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from sqlmodel import Field
 
 from app.modules.shared.helpers import validate_password_strength
+from app.modules.shared.enums import Role, Currency
 
 
 class UserUpdate(BaseModel):
@@ -31,3 +34,20 @@ class ChangeEmailRequest(BaseModel):
     """Schema for changing the user email address with password confirmation."""
     new_email: EmailStr
     password: str
+
+
+class UserResponse(BaseModel):
+    """Schema for user response."""
+    id: UUID
+    email: EmailStr
+    full_name: Optional[str] = None
+    stag: Optional[str] = None
+    role: Role
+    is_verified: bool
+    is_enabled: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+    preferred_currency: Currency
+    
+    model_config = ConfigDict(from_attributes=True)

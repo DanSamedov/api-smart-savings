@@ -74,11 +74,11 @@ class SMTPProvider(EmailProvider):
     """Email provider implementation using SMTP (fastapi-mail)."""
 
     def __init__(self):
-        if not settings.SMTP_HOST or not settings.SMTP_USER:
+        if not settings.SMTP_HOST or not settings.SMTP_USERNAME:
             logger.warning("SMTP settings are incomplete. Email sending via SMTP may fail.")
 
         self.conf = ConnectionConfig(
-            MAIL_USERNAME=settings.SMTP_USER,
+            MAIL_USERNAME=settings.SMTP_USERNAME,
             MAIL_PASSWORD=settings.SMTP_PASSWORD,
             MAIL_FROM=settings.MAIL_FROM_EMAIL,
             MAIL_PORT=settings.SMTP_PORT,

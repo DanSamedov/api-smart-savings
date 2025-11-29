@@ -107,7 +107,6 @@ async def get_current_user(
     except Exception as e:
         raise CustomException.e401_unauthorized("Could not validate credentials.")
 
-
 async def get_current_admin_user(
     current_user: User = Depends(get_current_user)
 ) -> User:
@@ -115,6 +114,16 @@ async def get_current_admin_user(
     Validate that the current user has administrative privileges.
     """
     if current_user.role not in [Role.ADMIN, Role.SUPER_ADMIN]:
+        CustomException.e403_forbidden("You do not have permission to access this resource.")
+    return current_user
+
+async def get_current_super_admin_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Validate that the current user has super administrative privileges.
+    """
+    if current_user.role != Role.SUPER_ADMIN:
         CustomException.e403_forbidden("You do not have permission to access this resource.")
     return current_user
 

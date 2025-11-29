@@ -42,6 +42,7 @@ def standard_response(message: Optional[str], status: str = "success", data: Any
 class UserData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
+    id: Any  # Using Any to handle both str and UUID seamlessly
     email: str
     stag: Optional[str]
     full_name: Optional[str]

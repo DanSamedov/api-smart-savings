@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import get_current_admin_user, get_rbac_service
+from app.api.dependencies import get_current_admin_user, get_current_super_admin_user, get_rbac_service
 from app.modules.rbac.service import RBACService
 from app.modules.rbac.schemas import AdminUserUpdate
 from app.core.utils.response import PaginatedUsersResponse, AppMetricsResponse
@@ -45,12 +45,12 @@ async def update_user(
     user_id: str,
     update_data: AdminUserUpdate,
     service: RBACService = Depends(get_rbac_service),
-    _: User = Depends(get_current_admin_user)
+    _: User = Depends(get_current_super_admin_user)
 ):
     """
     Update a specific user's details.
     
-    Restricted to ADMIN or SUPER_ADMIN roles.
+    Restricted to SUPER_ADMIN role only.
     Allowed updates: role, is_enabled, is_verified.
     """
     updated_user = await service.update_user(user_id, update_data)
