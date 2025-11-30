@@ -1,6 +1,7 @@
 # app/modules/group/schemas.py
 
 from uuid import UUID
+from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -10,7 +11,7 @@ from app.modules.shared.enums import Currency
 class GroupUpdate(BaseModel):
     """Schema for updating group details."""
     name: Optional[str] = None
-    target_balance: Optional[float] = None
+    target_balance: Optional[Decimal] = None
     require_admin_approval_for_funds_removal: Optional[bool] = None
     currency: Optional[Currency] = None
     

@@ -69,6 +69,14 @@ class GroupService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can update the group")
+            
+        if group_in.target_balance is not None:
+            if group_in.target_balance < group.current_balance:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Target balance cannot be less than current balance"
+                )
+                
         return await self.group_repo.update_group(group_id, group_in)
 
     async def delete_group(self, group_id: uuid.UUID, current_user: User):
