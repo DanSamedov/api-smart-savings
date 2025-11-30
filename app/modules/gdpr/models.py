@@ -7,9 +7,9 @@ from uuid import uuid4, UUID
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy import Column, DateTime, func, Enum as SQLEnum, ForeignKey
 from sqlmodel import Field, SQLModel, Relationship
+from pydantic import ConfigDict
 
 from app.modules.shared.enums import GDPRRequestStatus, GDPRRequestType
-
 
 class GDPRRequest(SQLModel, table=True):
     """
@@ -51,6 +51,10 @@ class GDPRRequest(SQLModel, table=True):
             server_default=func.now(),
             onupdate=func.now(),
         )
+    )
+
+    model_config = ConfigDict(
+        validate_assignment=True    
     )
 
 from app.modules.user.models import User

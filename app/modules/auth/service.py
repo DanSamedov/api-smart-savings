@@ -56,7 +56,7 @@ class AuthService:
 
         new_user = User(
             email=str(register_request.email).lower().strip(),
-            password_hash=hash_password(register_request.password),
+            password_hash=hash_password(register_request.password.get_secret_value()),
             verification_code=verification_code,
             verification_code_expires_at=expires_at,
             created_at=datetime.now(timezone.utc),
@@ -153,7 +153,7 @@ class AuthService:
         if not user:
             raise CustomException.e401_unauthorized("Invalid credentials.")
 
-        if not verify_password(login_request.password, user.password_hash):
+        if not verify_password(login_request.password.get_secret_value(), user.password_hash):
             await self._handle_failed_login(user, raw_ip, hashed_ip, background_tasks)
 
         if not user.is_enabled and user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS:
@@ -267,7 +267,7 @@ class AuthService:
                 raise CustomException.e404_not_found("Account not found.")
 
             updates = {
-                "password_hash": hash_password(reset_request.new_password),
+                "password_hash": hash_password(reset_request.new_password.get_secret_value()),
                 "failed_login_attempts": 0,
                 "updated_at": datetime.now(timezone.utc),
                 "is_enabled": True,

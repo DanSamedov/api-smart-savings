@@ -8,7 +8,7 @@ until pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${POSTGRES_USER:-
   sleep 1
 done
 
-echo "[START SCRIPT] (i) Applying alembic migrations..."
+# echo "[START SCRIPT] (i) Applying alembic migrations..."
 alembic upgrade head
 
 echo "[START SCRIPT] (i) Starting FastAPI (dev, reload enabled)..."

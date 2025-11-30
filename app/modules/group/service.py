@@ -16,9 +16,11 @@ from app.modules.shared.enums import GroupRole, NotificationType, TransactionTyp
 from app.modules.group.models import GroupMember
 from app.modules.group.schemas import (
     GroupCreate,
-    GroupMemberCreate,
-    GroupTransactionMessageCreate,
     GroupUpdate,
+    AddMemberRequest,
+    RemoveMemberRequest,
+    GroupDepositRequest,
+    GroupWithdrawRequest,
 )
 
 from app.modules.user.models import User
@@ -94,7 +96,7 @@ class GroupService:
     async def add_group_member(
         self,
         group_id: uuid.UUID,
-        member_in: GroupMemberCreate,
+        member_in: AddMemberRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
     ):
@@ -108,14 +110,20 @@ class GroupService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can add members")
 
         members = await self.group_repo.get_group_members(group_id)
-        if any(member.user_id == member_in.user_id for member in members):
+        
+        # Resolve user_id from email
+        user_to_add = await self.user_repo.get_by_email(member_in.email)
+        if not user_to_add:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            
+        if any(member.user_id == user_to_add.id for member in members):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member")
 
         if len(members) >= 7:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group cannot have more than 7 members")
 
         # Cooldown validation
-        removed_member = await self.group_repo.get_removed_member(group_id, member_in.user_id)
+        removed_member = await self.group_repo.get_removed_member(group_id, user_to_add.id)
         if removed_member:
             cooldown_days = settings.REMOVE_MEMBER_COOLDOWN_DAYS
             if removed_member.removed_at + timedelta(days=cooldown_days) > datetime.now(timezone.utc):
@@ -124,10 +132,10 @@ class GroupService:
                     detail=f"User cannot rejoin the group until the {cooldown_days}-day cooldown period has passed."
                 )
 
-        await self.group_repo.add_member_to_group(group_id, member_in.user_id)
+        await self.group_repo.add_member_to_group(group_id, user_to_add.id)
         
         # Send email notification to new member
-        new_member = await self.user_repo.get_by_id(member_in.user_id)
+        new_member = user_to_add
         if new_member:
             currency = new_member.preferred_currency
             
@@ -154,7 +162,7 @@ class GroupService:
     async def remove_group_member(
         self,
         group_id: uuid.UUID,
-        member_in: GroupMemberCreate,
+        member_in: RemoveMemberRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
     ):
@@ -218,7 +226,7 @@ class GroupService:
     async def contribute_to_group(
         self,
         group_id: uuid.UUID,
-        transaction_in: GroupTransactionMessageCreate,
+        transaction_in: GroupDepositRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
         session = None # Passed for execute() call, ideally should be in repo but logic is here
@@ -417,7 +425,7 @@ class GroupService:
     async def remove_contribution(
         self,
         group_id: uuid.UUID,
-        transaction_in: GroupTransactionMessageCreate,
+        transaction_in: GroupWithdrawRequest,
         current_user: User,
         background_tasks: Optional[BackgroundTasks] = None,
     ):

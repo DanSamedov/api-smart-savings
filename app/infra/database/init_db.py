@@ -54,7 +54,7 @@ async def init_test_accounts():
                 full_name=f"Test User {i+1}",
                 password_hash=hashed_password,
                 is_verified=True,  # wallet should exist immediately
-                role=Role.ADMIN if i == 0 else Role.USER,
+                role=Role.SUPER_ADMIN if i == 0 else Role.USER,
                 created_at=now,
                 updated_at=now,
                 is_deleted=False,

@@ -1,11 +1,13 @@
 # app/modules/wallet/models.py
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4, UUID
 
-from sqlalchemy import Column, DateTime, func, Numeric, CheckConstraint, Enum as SQLEnum, text
+from sqlalchemy import Column, DateTime, func, Numeric, Enum as SQLEnum, text
 from sqlmodel import Field, SQLModel, Relationship, Boolean
+from pydantic import ConfigDict
+
 from app.modules.shared.enums import TransactionType, TransactionStatus
 
 class Wallet(SQLModel, table=True):
@@ -48,6 +50,9 @@ class Wallet(SQLModel, table=True):
     def available_balance(self) -> float:
         return float(self.total_balance) - float(self.locked_amount)
 
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
 
 class ExchangeRate(SQLModel, table=True):
     """Exchange rate model for currency conversion rates."""
@@ -65,6 +70,10 @@ class ExchangeRate(SQLModel, table=True):
             server_default=func.now(),
             onupdate=func.now(),
         )
+    )
+
+    model_config = ConfigDict(
+        validate_assignment=True     
     )
 
 class Transaction(SQLModel, table=True):
@@ -108,6 +117,10 @@ class Transaction(SQLModel, table=True):
 
     owner_id: Optional[UUID] = Field(default=None, foreign_key="app_user.id")
     owner: "User" = Relationship(back_populates="transactions")
+
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
 
 from app.modules.user.models import User
 

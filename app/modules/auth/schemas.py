@@ -1,6 +1,6 @@
 # app/modules/auth/schemas.py
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, SecretStr
 
 from app.modules.shared.helpers import validate_password_strength
 
@@ -9,19 +9,20 @@ class RegisterRequest(BaseModel):
     """Schema for user registration with password validation."""
 
     email: EmailStr
-    password: str
+    password: SecretStr
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_password_strength(v)
+    def validate_password(cls, v: SecretStr) -> SecretStr:
+        validate_password_strength(v.get_secret_value())
+        return v
 
 
 class LoginRequest(BaseModel):
     """Schema for user login requests."""
 
     email: EmailStr
-    password: str
+    password: SecretStr
 
 
 class VerifyEmailRequest(BaseModel):
@@ -45,9 +46,10 @@ class VerificationCodeOnlyRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     """Schema for password reset requests with token and new password validation."""
     reset_token: str
-    new_password: str
+    new_password: SecretStr
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_password_strength(v)
+    def validate_password(cls, v: SecretStr) -> SecretStr:
+        validate_password_strength(v.get_secret_value())
+        return v

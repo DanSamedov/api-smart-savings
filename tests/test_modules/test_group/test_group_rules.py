@@ -7,7 +7,7 @@ from fastapi import HTTPException, status, BackgroundTasks
 
 from app.modules.group.service import GroupService
 from app.modules.group.models import Group, GroupMember, RemovedGroupMember
-from app.modules.group.schemas import GroupMemberCreate, GroupTransactionMessageCreate
+from app.modules.group.schemas import AddMemberRequest, RemoveMemberRequest, GroupDepositRequest
 from app.modules.user.models import User
 from app.modules.shared.enums import GroupRole, TransactionType, Currency
 
@@ -32,6 +32,7 @@ def mock_group_repo():
 def mock_user_repo():
     repo = AsyncMock()
     repo.get_by_id = AsyncMock()
+    repo.get_by_email = AsyncMock()
     return repo
 
 @pytest.fixture
@@ -60,19 +61,24 @@ def background_tasks():
     return MagicMock(spec=BackgroundTasks)
 
 @pytest.mark.asyncio
-async def test_add_group_member_max_limit(group_service, mock_group_repo, current_user, background_tasks):
+async def test_add_group_member_max_limit(group_service, mock_group_repo, mock_user_repo, current_user, background_tasks):
     group_id = uuid.uuid4()
+    user_to_add_id = uuid.uuid4()
+    email_to_add = "new@example.com"
     
     # Mock group
     mock_group_repo.get_group_by_id.return_value = Group(id=group_id, name="Test Group", target_balance=1000)
     mock_group_repo.is_user_admin.return_value = True
+    
+    # Mock user resolution
+    mock_user_repo.get_by_email.return_value = User(id=user_to_add_id, email=email_to_add)
     
     # Mock 7 existing members
     mock_group_repo.get_group_members.return_value = [
         GroupMember(group_id=group_id, user_id=uuid.uuid4()) for _ in range(7)
     ]
     
-    member_in = GroupMemberCreate(user_id=uuid.uuid4())
+    member_in = AddMemberRequest(email=email_to_add)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.add_group_member(group_id, member_in, current_user=current_user, background_tasks=background_tasks)
@@ -81,13 +87,17 @@ async def test_add_group_member_max_limit(group_service, mock_group_repo, curren
     assert "more than 7 members" in exc.value.detail
 
 @pytest.mark.asyncio
-async def test_add_group_member_cooldown(group_service, mock_group_repo, current_user, mock_settings, background_tasks):
+async def test_add_group_member_cooldown(group_service, mock_group_repo, mock_user_repo, current_user, mock_settings, background_tasks):
     group_id = uuid.uuid4()
     user_id_to_add = uuid.uuid4()
+    email_to_add = "new@example.com"
     
     # Mock group
     mock_group_repo.get_group_by_id.return_value = Group(id=group_id, name="Test Group", target_balance=1000)
     mock_group_repo.is_user_admin.return_value = True
+    
+    # Mock user resolution
+    mock_user_repo.get_by_email.return_value = User(id=user_id_to_add, email=email_to_add)
     
     # Mock existing members (less than 7)
     mock_group_repo.get_group_members.return_value = []
@@ -99,7 +109,7 @@ async def test_add_group_member_cooldown(group_service, mock_group_repo, current
         removed_at=datetime.now(timezone.utc) - timedelta(days=2) # 2 days ago
     )
     
-    member_in = GroupMemberCreate(user_id=user_id_to_add)
+    member_in = AddMemberRequest(email=email_to_add)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.add_group_member(group_id, member_in, current_user=current_user, background_tasks=background_tasks)
@@ -124,7 +134,7 @@ async def test_remove_group_member_with_contributions(group_service, mock_group_
     # Mock user to remove
     mock_user_repo.get_by_id.return_value = User(id=user_id_to_remove, email="remove@example.com")
 
-    member_in = GroupMemberCreate(user_id=user_id_to_remove)
+    member_in = RemoveMemberRequest(user_id=user_id_to_remove)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.remove_group_member(group_id, member_in, current_user=current_user, background_tasks=background_tasks)
@@ -144,7 +154,7 @@ async def test_contribute_to_group_min_members(group_service, mock_group_repo, m
         GroupMember(group_id=group_id, user_id=current_user.id)
     ]
     
-    transaction_in = GroupTransactionMessageCreate(amount=50.0, type=TransactionType.GROUP_SAVINGS_DEPOSIT)
+    transaction_in = GroupDepositRequest(amount=50.0)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.contribute_to_group(

@@ -2,8 +2,9 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, List, TYPE_CHECKING
-from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, func, String, Numeric, Boolean, Enum as SQLAlchemyEnum
+from typing import List, TYPE_CHECKING
+from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, func, Numeric, Enum as SQLAlchemyEnum
+from pydantic import ConfigDict
 from app.modules.shared.enums import GroupRole, TransactionType, Currency
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ class GroupBase(SQLModel):
 
 
 class Group(GroupBase, table=True):
-    __tablename__ = "groups"
+    __tablename__ = "group"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
@@ -37,6 +38,11 @@ class Group(GroupBase, table=True):
         back_populates="group", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
+
+
 
 class GroupMemberBase(SQLModel):
     role: GroupRole = Field(sa_column=Column(SQLAlchemyEnum(GroupRole), default=GroupRole.MEMBER))
@@ -44,15 +50,19 @@ class GroupMemberBase(SQLModel):
 
 
 class GroupMember(GroupMemberBase, table=True):
-    __tablename__ = "group_members"
+    __tablename__ = "group_member"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     joined_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
     group: "Group" = Relationship(back_populates="members")
     user: "User" = Relationship(back_populates="group_memberships")
+
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
 
 
 class GroupTransactionMessageBase(SQLModel):
@@ -64,25 +74,32 @@ class GroupTransactionMessageBase(SQLModel):
 
 
 class GroupTransactionMessage(GroupTransactionMessageBase, table=True):
-    __tablename__ = "group_transaction_messages"
+    __tablename__ = "group_transaction_message"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     timestamp: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
     group: "Group" = Relationship(back_populates="transaction_messages")
     user: "User" = Relationship()
 
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
+
 
 class RemovedGroupMember(SQLModel, table=True):
-    __tablename__ = "removed_group_members"
+    __tablename__ = "removed_group_member"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     removed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
 
 from app.modules.user.models import User
 

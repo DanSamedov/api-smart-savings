@@ -6,18 +6,19 @@ from fastapi import APIRouter, Depends, status, BackgroundTasks
 from app.api.dependencies import get_current_user, get_group_service
 from app.modules.group.schemas import (
     GroupCreate,
-    GroupDetailsRead,
-    GroupMemberCreate,
-    GroupRead,
-    GroupTransactionMessageCreate,
+    GroupResponse,
+    AddMemberRequest,
+    RemoveMemberRequest,
     GroupUpdate,
+    GroupDepositRequest,
+    GroupWithdrawRequest,
 )
 from app.modules.user.models import User
 from app.modules.group.service import GroupService
 
 router = APIRouter()
 
-@router.post("/", response_model=GroupRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
 async def create_group(
     group_in: GroupCreate,
     service: GroupService = Depends(get_group_service),
@@ -29,7 +30,7 @@ async def create_group(
     return await service.create_group(group_in, current_user)
 
 
-@router.get("/{group_id}", response_model=GroupDetailsRead, status_code=status.HTTP_200_OK)
+@router.get("/{group_id}", response_model=GroupResponse, status_code=status.HTTP_200_OK)
 async def get_group(
     group_id: uuid.UUID,
     service: GroupService = Depends(get_group_service),
@@ -41,7 +42,7 @@ async def get_group(
     return await service.get_group(group_id, current_user)
 
 
-@router.patch("/{group_id}/settings", response_model=GroupRead, status_code=status.HTTP_200_OK)
+@router.patch("/{group_id}/settings", response_model=GroupResponse, status_code=status.HTTP_200_OK)
 async def update_group_settings(
     group_id: uuid.UUID,
     group_in: GroupUpdate,
@@ -69,7 +70,7 @@ async def delete_group(
 @router.post("/{group_id}/add-member", status_code=status.HTTP_201_CREATED)
 async def add_group_member(
     group_id: uuid.UUID,
-    member_in: GroupMemberCreate,
+    member_in: AddMemberRequest,
     background_tasks: BackgroundTasks = None,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -83,7 +84,7 @@ async def add_group_member(
 @router.post("/{group_id}/remove-member", status_code=status.HTTP_200_OK)
 async def remove_group_member(
     group_id: uuid.UUID,
-    member_in: GroupMemberCreate,
+    member_in: RemoveMemberRequest,
     background_tasks: BackgroundTasks = None,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -98,7 +99,7 @@ async def remove_group_member(
 @router.post("/{group_id}/contribute", status_code=status.HTTP_201_CREATED)
 async def contribute_to_group(
     group_id: uuid.UUID,
-    transaction_in: GroupTransactionMessageCreate,
+    transaction_in: GroupDepositRequest,
     background_tasks: BackgroundTasks = None,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -117,7 +118,7 @@ async def contribute_to_group(
 )
 async def remove_contribution(
     group_id: uuid.UUID,
-    transaction_in: GroupTransactionMessageCreate,
+    transaction_in: GroupWithdrawRequest,
     background_tasks: BackgroundTasks = None,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),

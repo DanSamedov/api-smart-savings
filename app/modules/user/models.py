@@ -6,6 +6,7 @@ from uuid import uuid4, UUID
 
 from sqlalchemy import Column, DateTime, func, Enum as SQLEnum
 from sqlmodel import Boolean, Field, SQLModel, Relationship
+from pydantic import ConfigDict
 
 from app.modules.shared.enums import Currency, Role
 
@@ -74,6 +75,10 @@ class User(UserBase, table=True):
 
     def __post_init__(self):
         self._initialized = True
+
+    model_config = ConfigDict(
+        validate_assignment=True     
+    )
 
 
 from app.modules.gdpr.models import GDPRRequest

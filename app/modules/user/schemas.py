@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict, SecretStr
 from sqlmodel import Field
 
 from app.modules.shared.helpers import validate_password_strength
@@ -21,8 +21,8 @@ class UserUpdate(BaseModel):
     
 class ChangePasswordRequest(BaseModel):
     """Schema for update of user password, requires current password."""
-    current_password: str
-    new_password: str
+    current_password: SecretStr
+    new_password: SecretStr
 
     @field_validator("new_password")
     @classmethod
@@ -33,7 +33,7 @@ class ChangePasswordRequest(BaseModel):
 class ChangeEmailRequest(BaseModel):
     """Schema for changing the user email address with password confirmation."""
     new_email: EmailStr
-    password: str
+    password: SecretStr
 
 
 class UserResponse(BaseModel):

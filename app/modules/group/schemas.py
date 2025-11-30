@@ -1,101 +1,79 @@
 # app/modules/group/schemas.py
 
-import uuid
+from uuid import UUID
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, Field
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat
+from app.modules.group.models import GroupBase, GroupMemberBase, GroupTransactionMessageBase
+from app.modules.shared.enums import GroupRole, Currency
 
-from app.modules.shared.enums import GroupRole, TransactionType, Currency
 
-
-# Group Schemas
-class GroupCreate(BaseModel):
+class GroupCreate(GroupBase):
     """Schema for creating a new group."""
-
-    name: str = Field(..., min_length=3, max_length=50, description="Name of the group")
-    target_balance: PositiveFloat = Field(..., description="The savings goal for the group")
-    require_admin_approval_for_funds_removal: bool = Field(
-        default=False, description="Whether admin approval is required for withdrawals"
-    )
-    currency: Currency = Field(..., description="The base currency for the group")
+    current_balance: Optional[float] = 0.0
 
 
 class GroupUpdate(BaseModel):
-    """Schema for updating an existing group's settings."""
-
-    name: Optional[str] = Field(None, min_length=3, max_length=50, description="New name for the group")
-    target_balance: Optional[PositiveFloat] = Field(None, description="New savings goal for the group")
-    require_admin_approval_for_funds_removal: Optional[bool] = Field(
-        None, description="Update withdrawal approval requirement"
-    )
-    currency: Optional[Currency] = Field(None, description="Update the group's base currency")
+    """Schema for updating group details."""
+    name: Optional[str] = None
+    target_balance: Optional[float] = None
+    require_admin_approval_for_funds_removal: Optional[bool] = None
+    currency: Optional[Currency] = None
 
 
-class GroupRead(BaseModel):
-    """Schema for reading group data, including database-generated fields."""
+class GroupMemberResponse(GroupMemberBase):
+    """Schema for group member response."""
+    id: UUID
+    group_id: UUID
+    user_id: UUID
+    joined_at: datetime
+    user_email: Optional[str] = None # Enriched field
+    user_full_name: Optional[str] = None # Enriched field
 
-    name: str
-    target_balance: PositiveFloat
-    require_admin_approval_for_funds_removal: bool
-    currency: Currency
+    model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    current_balance: float
+
+class GroupTransactionMessageResponse(GroupTransactionMessageBase):
+    """Schema for group transaction message response."""
+    id: UUID
+    group_id: UUID
+    user_id: UUID
+    timestamp: datetime
+    user_email: Optional[str] = None # Enriched field
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GroupResponse(GroupBase):
+    """Schema for group response."""
+    id: UUID
     created_at: datetime
     updated_at: datetime
+    members: List[GroupMemberResponse] = []
+    
+    # Computed fields or additional info can be added here
+    is_member: Optional[bool] = False
+    user_role: Optional[GroupRole] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-# Group Member Schemas
-class GroupMemberCreate(BaseModel):
-    """Schema for adding a new member to a group."""
-
-    user_id: uuid.UUID = Field(..., description="The ID of the user to add to the group")
+class AddMemberRequest(BaseModel):
+    """Schema for adding a member to a group."""
+    email: str
 
 
-class GroupMemberRead(BaseModel):
-    """Schema for reading group member data."""
-
-    user_id: uuid.UUID
-    role: GroupRole
-
-    id: uuid.UUID
-    group_id: uuid.UUID
-    contributed_amount: float
-    joined_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+class RemoveMemberRequest(BaseModel):
+    """Schema for removing a member from a group."""
+    user_id: UUID
 
 
-# Group Transaction Schemas
+class GroupDepositRequest(BaseModel):
+    """Schema for depositing funds into a group."""
+    amount: float = Field(gt=0, description="Amount to deposit")
 
 
-
-class GroupTransactionMessageCreate(BaseModel):
-    """Schema for creating a new group transaction message."""
-
-    amount: PositiveFloat = Field(..., description="The amount of the transaction")
-
-
-class GroupTransactionMessageRead(BaseModel):
-    """Schema for reading group transaction messages."""
-
-    amount: PositiveFloat
-    type: TransactionType
-
-    id: uuid.UUID
-    group_id: uuid.UUID
-    user_id: uuid.UUID
-    timestamp: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Detailed View Schemas
-class GroupDetailsRead(GroupRead):
-    """Detailed schema for a group, including its members and transaction messages."""
-
-    members: List[GroupMemberRead] = []
-    messages: List[GroupTransactionMessageRead] = []
+class GroupWithdrawRequest(BaseModel):
+    """Schema for withdrawing funds from a group."""
+    amount: float = Field(gt=0, description="Amount to withdraw")
