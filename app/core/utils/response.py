@@ -89,8 +89,12 @@ class GroupMemberData(BaseModel):
     contributed_amount: Decimal
     user_email: Optional[str] = None
     user_full_name: Optional[str] = None
+    user_stag: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+class GroupMembersResponse(BaseResponse):
+    data: List[GroupMemberData]
 
 class GroupTransactionMessageData(BaseModel):
     id: UUID

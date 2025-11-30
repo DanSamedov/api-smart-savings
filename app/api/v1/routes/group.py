@@ -1,11 +1,14 @@
 # app/api/v1/routes/group.py
 
 import uuid
-from fastapi import APIRouter, Depends, status, BackgroundTasks
+import uuid
+from fastapi import APIRouter, Depends, status, BackgroundTasks, Request
 from fastapi.encoders import jsonable_encoder
 
+from app.core.middleware.rate_limiter import limiter
+
 from app.api.dependencies import get_current_user, get_group_service
-from app.core.utils.response import GroupResponse, UserGroupsResponse
+from app.core.utils.response import GroupResponse, UserGroupsResponse, GroupMembersResponse
 from app.modules.group.schemas import (
     AddMemberRequest,
     RemoveMemberRequest,
@@ -22,7 +25,9 @@ from app.modules.shared.enums import GroupRole
 router = APIRouter()
 
 @router.post("/", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def create_group(
+    request: Request,
     group_in: GroupBase,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -46,7 +51,9 @@ async def create_group(
 
 
 @router.get("/", response_model=UserGroupsResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("20/minute")
 async def get_user_groups(
+    request: Request,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
 ):
@@ -58,7 +65,9 @@ async def get_user_groups(
 
 
 @router.get("/{group_id}", response_model=GroupResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("20/minute")
 async def get_group(
+    request: Request,
     group_id: uuid.UUID,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -84,8 +93,38 @@ async def get_group(
     return GroupResponse(data=group_dict)
 
 
+@router.get("/{group_id}/members", response_model=GroupMembersResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("20/minute")
+async def get_group_members(
+    request: Request,
+    group_id: uuid.UUID,
+    service: GroupService = Depends(get_group_service),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get all members of a specific group. Only members can view this list.
+    """
+    members = await service.get_group_members(group_id, current_user)
+    
+    # Enrich member data with user details
+    members_data = []
+    for member in members:
+        member_dict = jsonable_encoder(member)
+        if member.user:
+            member_dict.update({
+                "user_email": member.user.email,
+                "user_full_name": member.user.full_name,
+                "user_stag": member.user.stag
+            })
+        members_data.append(member_dict)
+        
+    return GroupMembersResponse(data=members_data)
+
+
 @router.patch("/{group_id}/settings", response_model=GroupResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
 async def update_group_settings(
+    request: Request,
     group_id: uuid.UUID,
     group_in: GroupUpdate,
     service: GroupService = Depends(get_group_service),
@@ -110,7 +149,9 @@ async def update_group_settings(
 
 
 @router.delete("/{group_id}", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def delete_group(
+    request: Request,
     group_id: uuid.UUID,
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
@@ -122,7 +163,9 @@ async def delete_group(
 
 
 @router.post("/{group_id}/add-member", status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def add_group_member(
+    request: Request,
     group_id: uuid.UUID,
     member_in: AddMemberRequest,
     background_tasks: BackgroundTasks = None,
@@ -136,7 +179,9 @@ async def add_group_member(
 
 
 @router.post("/{group_id}/remove-member", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
 async def remove_group_member(
+    request: Request,
     group_id: uuid.UUID,
     member_in: RemoveMemberRequest,
     background_tasks: BackgroundTasks = None,
@@ -151,7 +196,9 @@ async def remove_group_member(
 
 
 @router.post("/{group_id}/contribute", status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def contribute_to_group(
+    request: Request,
     group_id: uuid.UUID,
     transaction_in: GroupDepositRequest,
     background_tasks: BackgroundTasks = None,
@@ -170,7 +217,9 @@ async def contribute_to_group(
     "/{group_id}/remove-contribution",
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 async def remove_contribution(
+    request: Request,
     group_id: uuid.UUID,
     transaction_in: GroupWithdrawRequest,
     background_tasks: BackgroundTasks = None,

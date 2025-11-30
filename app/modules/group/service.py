@@ -106,6 +106,23 @@ class GroupService:
             status_code=status.HTTP_404_NOT_FOUND, detail="Group not found or could not be deleted"
         )
 
+    async def get_group_members(self, group_id: uuid.UUID, current_user: User):
+        """
+        Get all members of a group. Only members can view this list.
+        """
+        group = await self.group_repo.get_group_by_id(group_id)
+        if not group:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+
+        # Check if current user is a member
+        members = await self.group_repo.get_group_members(group_id)
+        if not any(str(m.user_id) == str(current_user.id) for m in members):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+
+        # Fetch members with details
+        members_with_details = await self.group_repo.get_group_members_with_details(group_id)
+        return members_with_details
+
     async def add_group_member(
         self,
         group_id: uuid.UUID,

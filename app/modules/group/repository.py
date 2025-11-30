@@ -188,6 +188,23 @@ class GroupRepository:
         result = await self.session.execute(select(GroupMember).where(GroupMember.group_id == group_id))
         return result.scalars().all()
 
+    async def get_group_members_with_details(self, group_id: uuid.UUID) -> List[GroupMember]:
+        """
+        Retrieves all members of a specific group with user details eagerly loaded.
+
+        Args:
+            group_id (uuid.UUID): The ID of the group.
+
+        Returns:
+            List[GroupMember]: A list of all members in the group with user details.
+        """
+        result = await self.session.execute(
+            select(GroupMember)
+            .where(GroupMember.group_id == group_id)
+            .options(selectinload(GroupMember.user))
+        )
+        return result.scalars().all()
+
     async def get_removed_member(self, group_id: uuid.UUID, user_id: uuid.UUID) -> Optional[RemovedGroupMember]:
         """
         Retrieves a removed member record.
