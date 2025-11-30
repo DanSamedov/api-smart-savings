@@ -2,11 +2,13 @@
 
 from typing import Optional, Any, List
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.core.config import settings
-from app.modules.shared.enums import Role, Currency
+from app.modules.shared.enums import Role, Currency, GroupRole, TransactionType
+from uuid import UUID
 
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
@@ -75,3 +77,61 @@ class AppMetricsData(BaseModel):
 
 class AppMetricsResponse(BaseResponse):
     data: AppMetricsData
+
+# Group Responses
+
+class GroupMemberData(BaseModel):
+    id: UUID
+    group_id: UUID
+    user_id: UUID
+    joined_at: datetime
+    role: GroupRole
+    contributed_amount: Decimal
+    user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupTransactionMessageData(BaseModel):
+    id: UUID
+    group_id: UUID
+    user_id: UUID
+    timestamp: datetime
+    amount: Decimal
+    type: TransactionType
+    user_email: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupData(BaseModel):
+    id: UUID
+    name: str
+    target_balance: Decimal
+    current_balance: Decimal
+    require_admin_approval_for_funds_removal: bool
+    currency: Currency
+    created_at: datetime
+    updated_at: datetime
+    members: List[GroupMemberData] = []
+    
+    # Computed fields
+    is_member: Optional[bool] = False
+    user_role: Optional[GroupRole] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupResponse(BaseResponse):
+    data: GroupData
+
+class GroupSummaryData(BaseModel):
+    id: UUID
+    name: str
+    target_balance: Decimal
+    current_balance: Decimal
+    currency: Currency
+    updated_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class UserGroupsResponse(BaseResponse):
+    data: List[GroupSummaryData]

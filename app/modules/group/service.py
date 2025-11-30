@@ -15,13 +15,13 @@ from app.modules.shared.helpers import transform_time
 from app.modules.shared.enums import GroupRole, NotificationType, TransactionType, TransactionStatus
 from app.modules.group.models import GroupMember
 from app.modules.group.schemas import (
-    GroupCreate,
     GroupUpdate,
     AddMemberRequest,
     RemoveMemberRequest,
     GroupDepositRequest,
     GroupWithdrawRequest,
 )
+from app.modules.group.models import GroupBase
 
 from app.modules.user.models import User
 
@@ -35,11 +35,17 @@ class GroupService:
         self.wallet_repo = wallet_repo
         self.notification_manager = notification_manager
 
-    async def create_group(self, group_in: GroupCreate, current_user: User):
+    async def create_group(self, group_in: GroupBase, current_user: User):
         """
         Create a new savings group. The user creating the group becomes its admin.
         """
         return await self.group_repo.create_group(group_in, current_user.id)
+        
+    async def get_user_groups(self, current_user: User):
+        """
+        Get all groups the current user is a member of.
+        """
+        return await self.group_repo.get_user_groups(current_user.id)
 
     async def get_group(self, group_id: uuid.UUID, current_user: User):
         """
@@ -52,7 +58,6 @@ class GroupService:
         is_member = any(str(member.user_id) == str(current_user.id) for member in group.members)
         if not is_member:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
-
         return group
 
     async def update_group_settings(self, group_id: uuid.UUID, group_in: GroupUpdate, current_user: User):

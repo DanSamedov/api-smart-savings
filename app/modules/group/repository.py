@@ -9,21 +9,21 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.modules.group.models import Group, GroupMember, GroupTransactionMessage, RemovedGroupMember
-from app.modules.group.schemas import GroupCreate, GroupUpdate
-from app.modules.shared.enums import GroupRole, TransactionStatus, TransactionType
-from app.modules.wallet.models import Transaction, Wallet
+from app.modules.group.schemas import GroupUpdate
+from app.modules.group.models import GroupBase
+from app.modules.shared.enums import GroupRole, TransactionType
 
 
 class GroupRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_group(self, group_data: GroupCreate, admin_id: uuid.UUID) -> Group:
+    async def create_group(self, group_data: GroupBase, admin_id: uuid.UUID) -> Group:
         """
         Creates a new group and adds the creator as the admin member.
 
         Args:
-            group_data (GroupCreate): The data for the new group.
+            group_data (GroupBase): The data for the new group.
             admin_id (uuid.UUID): The ID of the user creating the group.
 
         Returns:
@@ -262,3 +262,20 @@ class GroupRepository:
         )
         self.session.add(message)
         return message
+
+    async def get_user_groups(self, user_id: uuid.UUID) -> List[Group]:
+        """
+        Retrieves all groups that a user is a member of.
+
+        Args:
+            user_id (uuid.UUID): The ID of the user.
+
+        Returns:
+            List[Group]: A list of group objects.
+        """
+        result = await self.session.execute(
+            select(Group)
+            .join(GroupMember, Group.id == GroupMember.group_id)
+            .where(GroupMember.user_id == user_id)
+        )
+        return result.scalars().all()

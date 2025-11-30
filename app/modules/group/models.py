@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class GroupBase(SQLModel):
     name: str = Field(nullable=False)
     target_balance: float = Field(sa_column=Column(Numeric(10, 2), nullable=False))
-    current_balance: float = Field(sa_column=Column(Numeric(10, 2), default=0.0))
+    current_balance: float = Field(default=0.0, sa_column=Column(Numeric(10, 2)))
     require_admin_approval_for_funds_removal: bool = Field(default=False)
     currency: Currency = Field(
         sa_column=Column(SQLAlchemyEnum(Currency), default=Currency.EUR, nullable=False)
@@ -22,7 +22,7 @@ class GroupBase(SQLModel):
 
 
 class Group(GroupBase, table=True):
-    __tablename__ = "group"
+    __tablename__ = "groups"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
@@ -53,7 +53,7 @@ class GroupMember(GroupMemberBase, table=True):
     __tablename__ = "group_member"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     joined_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
@@ -77,7 +77,7 @@ class GroupTransactionMessage(GroupTransactionMessageBase, table=True):
     __tablename__ = "group_transaction_message"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     timestamp: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
@@ -93,7 +93,7 @@ class RemovedGroupMember(SQLModel, table=True):
     __tablename__ = "removed_group_member"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    group_id: uuid.UUID = Field(foreign_key="group.id", nullable=False)
+    group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
     removed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 

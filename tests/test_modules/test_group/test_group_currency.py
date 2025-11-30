@@ -3,7 +3,8 @@ import pytest
 import uuid
 from unittest.mock import AsyncMock
 from app.modules.group.service import GroupService
-from app.modules.group.schemas import GroupCreate, GroupUpdate
+from app.modules.group.schemas import GroupUpdate
+from app.modules.group.models import GroupBase
 from app.modules.shared.enums import Currency, GroupRole
 from app.modules.user.models import User
 
@@ -35,7 +36,7 @@ def group_service(mock_group_repo, mock_user_repo, mock_wallet_repo, mock_notifi
 @pytest.mark.asyncio
 async def test_create_group_with_currency(group_service, mock_group_repo):
     user = User(id=uuid.uuid4(), email="test@example.com")
-    group_in = GroupCreate(
+    group_in = GroupBase(
         name="Test Group",
         target_balance=1000.0,
         currency=Currency.USD

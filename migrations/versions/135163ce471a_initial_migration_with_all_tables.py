@@ -1,8 +1,8 @@
-"""v1_live_w_groups
+"""initial migration with all tables
 
-Revision ID: ad802629eabd
+Revision ID: 135163ce471a
 Revises: 
-Create Date: 2025-11-30 15:51:01.374481
+Create Date: 2025-11-30 18:02:05.362312
 
 """
 from typing import Sequence, Union
@@ -11,8 +11,9 @@ from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 
+
 # revision identifiers, used by Alembic.
-revision: str = 'ad802629eabd'
+revision: str = '135163ce471a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -56,7 +57,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('group',
+    op.create_table('groups',
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('target_balance', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('current_balance', sa.Numeric(precision=10, scale=2), nullable=True),
@@ -88,7 +89,7 @@ def upgrade() -> None:
     sa.Column('group_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('joined_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.ForeignKeyConstraint(['group_id'], ['group.id'], ),
+    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['app_user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -99,7 +100,7 @@ def upgrade() -> None:
     sa.Column('group_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.ForeignKeyConstraint(['group_id'], ['group.id'], ),
+    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['app_user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -108,7 +109,7 @@ def upgrade() -> None:
     sa.Column('group_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('removed_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.ForeignKeyConstraint(['group_id'], ['group.id'], ),
+    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['app_user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -156,7 +157,7 @@ def downgrade() -> None:
     op.drop_table('group_member')
     op.drop_index(op.f('ix_gdpr_request_created_at'), table_name='gdpr_request')
     op.drop_table('gdpr_request')
-    op.drop_table('group')
+    op.drop_table('groups')
     op.drop_table('exchange_rate')
     op.drop_index(op.f('ix_app_user_stag'), table_name='app_user')
     op.drop_index(op.f('ix_app_user_email'), table_name='app_user')
