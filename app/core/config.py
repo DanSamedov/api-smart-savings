@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     MIN_GROUP_THRESHOLD_AMOUNT: Optional[float] = None
     MIN_WALLET_TRANSACTION_AMOUNT: Optional[float] = None
     MAX_WALLET_TRANSACTION_AMOUNT: Optional[float] = None
+    # GROUP
+    MAX_GROUP_MEMBERS: Optional[int] = None
     # GOOGLE
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None

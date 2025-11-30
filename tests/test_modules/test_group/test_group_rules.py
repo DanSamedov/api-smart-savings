@@ -64,6 +64,7 @@ def background_tasks():
 async def test_add_group_member_max_limit(group_service, mock_group_repo, mock_user_repo, current_user, background_tasks):
     group_id = uuid.uuid4()
     user_to_add_id = uuid.uuid4()
+    stag_to_add = "newuser"
     email_to_add = "new@example.com"
     
     # Mock group
@@ -71,25 +72,27 @@ async def test_add_group_member_max_limit(group_service, mock_group_repo, mock_u
     mock_group_repo.is_user_admin.return_value = True
     
     # Mock user resolution
-    mock_user_repo.get_by_email.return_value = User(id=user_to_add_id, email=email_to_add)
+    mock_user_repo.get_by_stag.return_value = User(id=user_to_add_id, email=email_to_add, stag=stag_to_add)
     
     # Mock 7 existing members
     mock_group_repo.get_group_members.return_value = [
         GroupMember(group_id=group_id, user_id=uuid.uuid4()) for _ in range(7)
     ]
     
-    member_in = AddMemberRequest(email=email_to_add)
+    member_in = AddMemberRequest(stag=stag_to_add)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.add_group_member(group_id, member_in, current_user=current_user, background_tasks=background_tasks)
     
     assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert "more than 7 members" in exc.value.detail
+    assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Groups are limited to 7 members maximum" in exc.value.detail
 
 @pytest.mark.asyncio
 async def test_add_group_member_cooldown(group_service, mock_group_repo, mock_user_repo, current_user, mock_settings, background_tasks):
     group_id = uuid.uuid4()
     user_id_to_add = uuid.uuid4()
+    stag_to_add = "newuser"
     email_to_add = "new@example.com"
     
     # Mock group
@@ -97,7 +100,7 @@ async def test_add_group_member_cooldown(group_service, mock_group_repo, mock_us
     mock_group_repo.is_user_admin.return_value = True
     
     # Mock user resolution
-    mock_user_repo.get_by_email.return_value = User(id=user_id_to_add, email=email_to_add)
+    mock_user_repo.get_by_stag.return_value = User(id=user_id_to_add, email=email_to_add, stag=stag_to_add)
     
     # Mock existing members (less than 7)
     mock_group_repo.get_group_members.return_value = []
@@ -109,13 +112,14 @@ async def test_add_group_member_cooldown(group_service, mock_group_repo, mock_us
         removed_at=datetime.now(timezone.utc) - timedelta(days=2) # 2 days ago
     )
     
-    member_in = AddMemberRequest(email=email_to_add)
+    member_in = AddMemberRequest(stag=stag_to_add)
     
     with pytest.raises(HTTPException) as exc:
         await group_service.add_group_member(group_id, member_in, current_user=current_user, background_tasks=background_tasks)
     
     assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert "cooldown period" in exc.value.detail
+    assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "cooldown period" in exc.value.detail or "rejoin after" in exc.value.detail
 
 @pytest.mark.asyncio
 async def test_remove_group_member_with_contributions(group_service, mock_group_repo, mock_user_repo, current_user, background_tasks, monkeypatch):
@@ -165,7 +169,8 @@ async def test_contribute_to_group_min_members(group_service, mock_group_repo, m
         )
     
     assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert "at least 2 members" in exc.value.detail
+    assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "At least 2 members" in exc.value.detail or "at least 2 members" in exc.value.detail
 
 @pytest.mark.asyncio
 async def test_delete_group_with_balance(group_service, mock_group_repo, monkeypatch):

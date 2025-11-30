@@ -103,9 +103,7 @@ async def update_group_settings(
     group_dict.update({
         "is_member": True,
         "user_role": GroupRole.ADMIN.value,
-        "members": [] # Service update might not return members, or we can fetch them if needed. 
-                      # For now, empty list or fetch fresh if critical.
-                      # Usually update returns the group object.
+        "members": []
     })
     
     return GroupResponse(data=group_dict)

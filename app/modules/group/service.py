@@ -124,16 +124,16 @@ class GroupService:
 
         members = await self.group_repo.get_group_members(group_id)
         
-        # Resolve user_id from email
-        user_to_add = await self.user_repo.get_by_email(member_in.email)
+        # Resolve user_id from stag
+        user_to_add = await self.user_repo.get_by_stag(member_in.stag)
         if not user_to_add:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{member_in.stag} does not exist")
             
         if any(member.user_id == user_to_add.id for member in members):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already a member")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{member_in.stag} is already a member")
 
-        if len(members) >= 7:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group cannot have more than 7 members")
+        if len(members) >= settings.MAX_GROUP_MEMBERS:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Groups are limited to 7 members maximum")
 
         # Cooldown validation
         removed_member = await self.group_repo.get_removed_member(group_id, user_to_add.id)
@@ -142,7 +142,7 @@ class GroupService:
             if removed_member.removed_at + timedelta(days=cooldown_days) > datetime.now(timezone.utc):
                  raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail=f"User cannot rejoin the group until the {cooldown_days}-day cooldown period has passed."
+                    detail=f"{member_in.stag} can rejoin after {cooldown_days} days."
                 )
 
         await self.group_repo.add_member_to_group(group_id, user_to_add.id)
@@ -169,7 +169,7 @@ class GroupService:
         
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content={"message": "Member added successfully"},
+            content={"message": f"{member_in.stag} added to group successfully"},
         )
 
     async def remove_group_member(
@@ -258,7 +258,7 @@ class GroupService:
         if len(members) < 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="Group must have at least 2 members to accept contributions."
+                detail="At least 2 members are required before a group can accept contributions."
             )
 
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)

@@ -18,7 +18,7 @@ class GroupUpdate(BaseModel):
 
 class AddMemberRequest(BaseModel):
     """Schema for adding a member to a group."""
-    email: str
+    stag: str
 
 
 class RemoveMemberRequest(BaseModel):
