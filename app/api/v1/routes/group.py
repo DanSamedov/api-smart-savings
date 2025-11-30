@@ -37,10 +37,10 @@ async def create_group(
     """
     new_group = await service.create_group(group_in, current_user)
 
-    # 1. Convert the Group object to a dictionary
+    # Convert the Group object to a dictionary
     group_dict = jsonable_encoder(new_group)
     
-    # 2. Add the missing computed fields
+    # Add the missing computed fields
     group_dict.update({
         "members": [],
         "is_member": True,
@@ -154,26 +154,7 @@ async def get_group_transactions(
             - `user_full_name` (str, optional): Full name of the user
             - `user_stag` (str, optional): User's unique tag
             - `is_current_user` (bool): True if this transaction was made by the requesting user
-    ```json
-    {
-        ...
-        "data": [
-            {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "group_id": "123e4567-e89b-12d3-a456-426614174000",
-                "user_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-                "timestamp": "2025-11-30T20:30:00Z",
-                "amount": 50.00,
-                "type": "GROUP_SAVINGS_DEPOSIT",
-                "user_email": "john@example.com",
-                "user_full_name": "John Doe",
-                "user_stag": "johndoe",
-                "is_current_user": true
-            }
-        ]
-    }
-    ```
-    
+
     Raises:
         HTTPException: If the group is not found or the user is not a member of the group
     """
