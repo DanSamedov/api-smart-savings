@@ -104,8 +104,14 @@ class GroupTransactionMessageData(BaseModel):
     amount: Decimal
     type: TransactionType
     user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+    user_stag: Optional[str] = None
+    is_current_user: bool = False
     
     model_config = ConfigDict(from_attributes=True)
+
+class GroupTransactionsResponse(BaseResponse):
+    data: List[GroupTransactionMessageData]
 
 class GroupData(BaseModel):
     id: UUID

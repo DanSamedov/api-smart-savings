@@ -296,3 +296,21 @@ class GroupRepository:
             .where(GroupMember.user_id == user_id)
         )
         return result.scalars().all()
+
+    async def get_group_transactions(self, group_id: uuid.UUID) -> List[GroupTransactionMessage]:
+        """
+        Retrieves all transactions for a specific group, sorted by latest first.
+
+        Args:
+            group_id (uuid.UUID): The ID of the group.
+
+        Returns:
+            List[GroupTransactionMessage]: A list of transaction messages sorted by timestamp descending.
+        """
+        result = await self.session.execute(
+            select(GroupTransactionMessage)
+            .where(GroupTransactionMessage.group_id == group_id)
+            .options(selectinload(GroupTransactionMessage.user))
+            .order_by(GroupTransactionMessage.timestamp.desc())
+        )
+        return result.scalars().all()

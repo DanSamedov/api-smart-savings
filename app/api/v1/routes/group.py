@@ -8,7 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from app.core.middleware.rate_limiter import limiter
 
 from app.api.dependencies import get_current_user, get_group_service
-from app.core.utils.response import GroupResponse, UserGroupsResponse, GroupMembersResponse
+from app.core.utils.response import GroupResponse, UserGroupsResponse, GroupMembersResponse, GroupTransactionsResponse
 from app.modules.group.schemas import (
     AddMemberRequest,
     RemoveMemberRequest,
@@ -119,6 +119,82 @@ async def get_group_members(
         members_data.append(member_dict)
         
     return GroupMembersResponse(data=members_data)
+
+
+@router.get("/{group_id}/transactions", response_model=GroupTransactionsResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("20/minute")
+async def get_group_transactions(
+    request: Request,
+    group_id: uuid.UUID,
+    service: GroupService = Depends(get_group_service),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get all transactions for a specific group, sorted by latest first.
+    
+    This endpoint retrieves the complete transaction history for a group, including
+    contributions and withdrawals. Only group members can access this endpoint.
+    
+    Args:
+        group_id (UUID): The unique identifier of the group
+    
+    The `is_current_user` flag helps the frontend distinguish between:
+    - Current user's transactions (display on right side, different styling)
+    - Other members' transactions (display on left side)
+    
+    Returns:
+        GroupTransactionsResponse: A list of transactions with the following fields for each transaction:
+            - `id` (UUID): Transaction identifier
+            - `group_id` (UUID): Group identifier
+            - `user_id` (UUID): User who made the transaction
+            - `timestamp` (datetime): When the transaction occurred
+            - `amount` (Decimal): Transaction amount
+            - `type` (TransactionType): Type of transaction (e.g., GROUP_SAVINGS_DEPOSIT, GROUP_SAVINGS_WITHDRAWAL)
+            - `user_email` (str, optional): Email of the user who made the transaction
+            - `user_full_name` (str, optional): Full name of the user
+            - `user_stag` (str, optional): User's unique tag
+            - `is_current_user` (bool): True if this transaction was made by the requesting user
+    ```json
+    {
+        ...
+        "data": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "group_id": "123e4567-e89b-12d3-a456-426614174000",
+                "user_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "timestamp": "2025-11-30T20:30:00Z",
+                "amount": 50.00,
+                "type": "GROUP_SAVINGS_DEPOSIT",
+                "user_email": "john@example.com",
+                "user_full_name": "John Doe",
+                "user_stag": "johndoe",
+                "is_current_user": true
+            }
+        ]
+    }
+    ```
+    
+    Raises:
+        HTTPException: If the group is not found or the user is not a member of the group
+    """
+    transactions = await service.get_group_transactions(group_id, current_user)
+    
+    # Enrich transaction data with user details and is_current_user flag
+    transactions_data = []
+    for transaction in transactions:
+        transaction_dict = jsonable_encoder(transaction)
+        if transaction.user:
+            transaction_dict.update({
+                "user_email": transaction.user.email,
+                "user_full_name": transaction.user.full_name,
+                "user_stag": transaction.user.stag,
+                "is_current_user": str(transaction.user_id) == str(current_user.id)
+            })
+        else:
+            transaction_dict["is_current_user"] = str(transaction.user_id) == str(current_user.id)
+        transactions_data.append(transaction_dict)
+        
+    return GroupTransactionsResponse(data=transactions_data)
 
 
 @router.patch("/{group_id}/settings", response_model=GroupResponse, status_code=status.HTTP_200_OK)

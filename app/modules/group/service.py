@@ -123,6 +123,23 @@ class GroupService:
         members_with_details = await self.group_repo.get_group_members_with_details(group_id)
         return members_with_details
 
+    async def get_group_transactions(self, group_id: uuid.UUID, current_user: User):
+        """
+        Get all transactions for a group. Only members can view transactions.
+        """
+        group = await self.group_repo.get_group_by_id(group_id)
+        if not group:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+
+        # Check if current user is a member
+        members = await self.group_repo.get_group_members(group_id)
+        if not any(str(m.user_id) == str(current_user.id) for m in members):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+
+        # Fetch transactions
+        transactions = await self.group_repo.get_group_transactions(group_id)
+        return transactions
+
     async def add_group_member(
         self,
         group_id: uuid.UUID,
@@ -149,8 +166,9 @@ class GroupService:
         if any(member.user_id == user_to_add.id for member in members):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{member_in.stag} is already a member")
 
-        if len(members) >= settings.MAX_GROUP_MEMBERS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Groups are limited to 7 members maximum")
+        max_members = settings.MAX_GROUP_MEMBERS or 7
+        if len(members) >= max_members:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Groups are limited to {max_members} members maximum")
 
         # Cooldown validation
         removed_member = await self.group_repo.get_removed_member(group_id, user_to_add.id)
