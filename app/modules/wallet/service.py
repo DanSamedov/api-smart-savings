@@ -78,25 +78,36 @@ class WalletService:
             }
         }
 
-    async def get_balance(self, current_user: User) -> dict[str, Any]:
+    async def get_balance(self, redis: Redis, current_user: User) -> dict[str, Any]:
         """
-        Get the wallet balance for the current user.
+        Get the wallet balance for the current user with caching.
 
         Args:
+            redis (Redis): Redis client.
             current_user (User): The authenticated user.
 
         Returns:
             dict[str, Any]: A dictionary with wallet balance details.
         """
-        wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
-        if not wallet:
-            raise CustomException.e404_not_found("Wallet not found. Please contact support.")
+        cache_key = f"wallet_balance:{current_user.id}"
 
-        return {
-            "total_balance": float(wallet.total_balance),
-            "locked_amount": float(wallet.locked_amount),
-            "available_balance": wallet.available_balance,
-        }
+        async def fetch_balance():
+            wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
+            if not wallet:
+                raise CustomException.e404_not_found("Wallet not found. Please contact support.")
+
+            return {
+                "total_balance": float(wallet.total_balance),
+                "locked_amount": float(wallet.locked_amount),
+                "available_balance": wallet.available_balance,
+            }
+
+        return await cache_or_get(
+            redis=redis,
+            key=cache_key,
+            fetch_func=fetch_balance,
+            ttl=300,  # Cache for 5 minutes
+        )
 
     async def get_transactions(
             self, redis: Redis, current_user: User, page: int, page_size: int
@@ -200,6 +211,7 @@ class WalletService:
         transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_DEPOSIT)
 
         await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
+        await invalidate_cache(redis, f"wallet_balance:{current_user.id}")
 
         await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
         return self._generate_transaction_response(wallet, transaction)
@@ -246,6 +258,7 @@ class WalletService:
         transaction = await self._record_transaction(wallet, user=current_user, amount=transaction_request.amount, tx_type=TransactionType.WALLET_WITHDRAWAL)
 
         await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
+        await invalidate_cache(redis, f"wallet_balance:{current_user.id}")
 
         await self._send_wallet_io_notification(current_user, wallet, transaction_request, transaction, background_tasks)
         return self._generate_transaction_response(wallet, transaction)

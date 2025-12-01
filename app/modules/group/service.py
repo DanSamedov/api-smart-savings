@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
+from redis.asyncio import Redis
 
 from fastapi import status, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -70,11 +71,6 @@ class GroupService:
             raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
             raise CustomException.forbidden(detail="Only admin can update the group")
-            
-        if group_in.target_balance is not None:
-            if group_in.target_balance < group.current_balance:
-                raise CustomException.bad_request(detail="Target balance cannot be less than current balance"
-                )
                 
         return await self.group_repo.update_group(group_id, group_in)
 
@@ -265,6 +261,7 @@ class GroupService:
 
     async def contribute_to_group(
         self,
+        redis: Redis,
         group_id: uuid.UUID,
         transaction_in: GroupDepositRequest,
         current_user: User,
@@ -313,8 +310,6 @@ class GroupService:
             
             # 2. Create wallet transaction record
             from app.modules.wallet.models import Transaction
-            from app.modules.wallet.repository import TransactionRepository
-            transaction_repo = TransactionRepository(self.wallet_repo.db)
             wallet_transaction = Transaction(
                 wallet_id=wallet.id,
                 owner_id=current_user.id,
@@ -341,6 +336,11 @@ class GroupService:
             
             # Commit all operations
             await self.group_repo.session.commit()
+            
+            # Invalidate cache
+            from app.core.utils.cache import invalidate_cache
+            await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
+            await invalidate_cache(redis, f"wallet_balance:{current_user.id}")
             
         except Exception:
             await self.group_repo.session.rollback()
@@ -465,6 +465,7 @@ class GroupService:
 
     async def remove_contribution(
         self,
+        redis: Redis,
         group_id: uuid.UUID,
         transaction_in: GroupWithdrawRequest,
         current_user: User,
@@ -533,6 +534,11 @@ class GroupService:
             
             # Commit all operations
             await self.group_repo.session.commit()
+            
+            # Invalidate cache
+            from app.core.utils.cache import invalidate_cache
+            await invalidate_cache(redis, f"wallet_transactions:{current_user.id}:*")
+            await invalidate_cache(redis, f"wallet_balance:{current_user.id}")
             
         except Exception as e:
             await self.group_repo.session.rollback()

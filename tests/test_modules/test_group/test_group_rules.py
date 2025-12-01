@@ -146,8 +146,13 @@ async def test_remove_group_member_with_contributions(group_service, mock_group_
     assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
     assert "contributions greater than" in exc.value.detail
 
+@pytest.fixture
+def mock_redis():
+    redis = AsyncMock()
+    return redis
+
 @pytest.mark.asyncio
-async def test_contribute_to_group_min_members(group_service, mock_group_repo, mock_wallet_repo, current_user, background_tasks):
+async def test_contribute_to_group_min_members(group_service, mock_group_repo, mock_wallet_repo, current_user, background_tasks, mock_redis):
     group_id = uuid.uuid4()
     
     # Mock group
@@ -162,6 +167,7 @@ async def test_contribute_to_group_min_members(group_service, mock_group_repo, m
     
     with pytest.raises(HTTPException) as exc:
         await group_service.contribute_to_group(
+            mock_redis,
             group_id, 
             transaction_in, 
             current_user=current_user,
@@ -173,7 +179,7 @@ async def test_contribute_to_group_min_members(group_service, mock_group_repo, m
     assert "At least 2 members" in exc.value.detail or "at least 2 members" in exc.value.detail
 
 @pytest.mark.asyncio
-async def test_contribute_to_group_target_reached(group_service, mock_group_repo, mock_wallet_repo, current_user, background_tasks):
+async def test_contribute_to_group_target_reached(group_service, mock_group_repo, mock_wallet_repo, current_user, background_tasks, mock_redis):
     group_id = uuid.uuid4()
     other_user_id = uuid.uuid4()
     
@@ -200,6 +206,7 @@ async def test_contribute_to_group_target_reached(group_service, mock_group_repo
     
     with pytest.raises(HTTPException) as exc:
         await group_service.contribute_to_group(
+            mock_redis,
             group_id, 
             transaction_in, 
             current_user=current_user,

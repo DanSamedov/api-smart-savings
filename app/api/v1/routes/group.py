@@ -1,13 +1,13 @@
 # app/api/v1/routes/group.py
 
 import uuid
-import uuid
 from fastapi import APIRouter, Depends, status, BackgroundTasks, Request
 from fastapi.encoders import jsonable_encoder
+from redis.asyncio import Redis
 
 from app.core.middleware.rate_limiter import limiter
 
-from app.api.dependencies import get_current_user, get_group_service
+from app.api.dependencies import get_current_user, get_group_service, get_redis
 from app.core.utils.response import GroupResponse, UserGroupsResponse, GroupMembersResponse, GroupTransactionsResponse
 from app.modules.group.schemas import (
     AddMemberRequest,
@@ -259,6 +259,7 @@ async def contribute_to_group(
     group_id: uuid.UUID,
     transaction_in: GroupDepositRequest,
     background_tasks: BackgroundTasks = None,
+    redis: Redis = Depends(get_redis),
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
 ):
@@ -267,19 +268,17 @@ async def contribute_to_group(
     debit the user's wallet and credit the group, or fail without
     changing any balances.
     """
-    return await service.contribute_to_group(group_id, transaction_in, current_user, background_tasks)
+    return await service.contribute_to_group(redis, group_id, transaction_in, current_user, background_tasks)
 
 
-@router.post(
-    "/{group_id}/remove-contribution",
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/{group_id}/remove-contribution", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def remove_contribution(
     request: Request,
     group_id: uuid.UUID,
     transaction_in: GroupWithdrawRequest,
     background_tasks: BackgroundTasks = None,
+    redis: Redis = Depends(get_redis),
     service: GroupService = Depends(get_group_service),
     current_user: User = Depends(get_current_user),
 ):
@@ -288,4 +287,4 @@ async def remove_contribution(
     credit the user's wallet and debit the group, or fail without
     changing any balances.
     """
-    return await service.remove_contribution(group_id, transaction_in, current_user, background_tasks)
+    return await service.remove_contribution(redis, group_id, transaction_in, current_user, background_tasks)
