@@ -1,4 +1,4 @@
-"""initial migration with all tables
+"""initial migration with all tables and correct enum names
 
 Revision ID: 135163ce471a
 Revises:
@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create tables with fully defined enums
+    # Create tables with enums using the correct _enum names
 
     op.create_table(
         "app_user",
@@ -27,13 +27,7 @@ def upgrade() -> None:
         sa.Column("password_hash", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column(
             "role",
-            sa.Enum(
-                "USER",
-                "ADMIN",
-                "SUPER_ADMIN",
-                "DELETED_USER",
-                name="role_enum"
-            ),
+            sa.Enum("USER", "ADMIN", "SUPER_ADMIN", "DELETED_USER", name="role_enum"),
             nullable=False,
             server_default="USER",
         ),
@@ -52,7 +46,7 @@ def upgrade() -> None:
         sa.Column("token_version", sa.Integer(), nullable=False),
         sa.Column(
             "preferred_currency",
-            sa.Enum("EUR", "USD", "PLN", "GBP", "CAD", name="currency_enum"),
+            sa.Enum("EUR", "USD", "PLN", "GBP", name="currency_enum"),
             server_default="EUR",
             nullable=False
         ),
@@ -79,7 +73,7 @@ def upgrade() -> None:
         sa.Column("target_balance", sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column("current_balance", sa.Numeric(precision=10, scale=2)),
         sa.Column("require_admin_approval_for_funds_removal", sa.Boolean(), nullable=False),
-        sa.Column("currency", sa.Enum("EUR", "USD", "PLN", "GBP", "CAD", name="currency_enum"), nullable=False),
+        sa.Column("currency", sa.Enum("EUR", "USD", "PLN", "GBP", name="currency_enum"), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -109,7 +103,7 @@ def upgrade() -> None:
 
     op.create_table(
         "group_member",
-        sa.Column("role", sa.Enum("ADMIN", "MEMBER", name="grouprole")),
+        sa.Column("role", sa.Enum("ADMIN", "MEMBER", name="group_role_enum")),
         sa.Column("contributed_amount", sa.Numeric(precision=10, scale=2)),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("group_id", sa.Uuid(), nullable=False),
@@ -132,7 +126,7 @@ def upgrade() -> None:
                 "GROUP_SAVINGS_WITHDRAWAL",
                 "INDIVIDUAL_SAVINGS_DEPOSIT",
                 "INDIVIDUAL_SAVINGS_WITHDRAWAL",
-                name="transactiontype",
+                name="transaction_type_enum",
             ),
         ),
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -234,8 +228,7 @@ def downgrade() -> None:
         "role_enum",
         "gdpr_request_type_enum",
         "gdpr_request_status_enum",
-        "grouprole",
-        "transactiontype",
+        "group_role_enum",
         "transaction_type_enum",
         "transaction_status_enum",
     ]
