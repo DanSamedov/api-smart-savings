@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4, UUID
 
-from sqlalchemy import Column, DateTime, func, Numeric, Enum as SQLEnum, text
-from sqlmodel import Field, SQLModel, Relationship, Boolean
+from sqlalchemy import Column, DateTime, Numeric, Boolean, text
+from sqlmodel import Field, SQLModel, Relationship
 from pydantic import ConfigDict
 
 from app.modules.shared.enums import TransactionType, TransactionStatus
@@ -29,18 +29,17 @@ class Wallet(SQLModel, table=True):
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
+            server_default="now()",
             nullable=False,
             index=True
         )
     )
 
-
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
+            server_default="now()",
+            onupdate=datetime.utcnow,
         )
     )
 
@@ -54,21 +53,21 @@ class Wallet(SQLModel, table=True):
         validate_assignment=True     
     )
 
+
 class ExchangeRate(SQLModel, table=True):
     """Exchange rate model for currency conversion rates."""
     __tablename__ = "exchange_rate"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    is_anonymized: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false")) # On user delete, set to True and remove user_id associations
-
+    is_anonymized: bool = Field(sa_column=Column(Boolean, nullable=False, server_default="false"))
     currency: Optional[str] = Field(default=None)
     rate_to_eur: float = Field(sa_column=Column(Numeric(20, 10), nullable=False))
 
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
+            server_default="now()",
+            onupdate=datetime.utcnow,
         )
     )
 
@@ -76,15 +75,13 @@ class ExchangeRate(SQLModel, table=True):
         validate_assignment=True     
     )
 
+
 class Transaction(SQLModel, table=True):
     """
     Transaction model representing wallet transactions.
     Relationships:
     - wallet_id : one wallet to many transactions
-    - user_id : one user to many transactions
-    TODO:
-    - group_id : one group to many transactions
-    - goal_id : one goal to many transactions
+    - owner_id : one user to many transactions
     """
     __tablename__ = "transaction"
 
@@ -92,13 +89,14 @@ class Transaction(SQLModel, table=True):
     is_anonymized: bool = Field(sa_column=Column(Boolean, server_default="false"))
 
     amount: float = Field(sa_column=Column(Numeric(15, 4), nullable=False))
-    type: TransactionType = Field(sa_column=Column(SQLEnum(TransactionType, name="transaction_type_enum"), nullable=False))
+    type: TransactionType = Field(sa_column=Column(TransactionType.sa_enum(), nullable=False))
     description: Optional[str] = None
-    status: TransactionStatus = Field(sa_column=Column(SQLEnum(TransactionStatus, name="transaction_status_enum"), nullable=False, server_default=TransactionStatus.PENDING.value))
+    status: TransactionStatus = Field(sa_column=Column(TransactionStatus.sa_enum(), nullable=False, server_default=TransactionStatus.PENDING.value))
+
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
+            server_default="now()",
             nullable=False,
             index=True
         )
@@ -107,8 +105,8 @@ class Transaction(SQLModel, table=True):
     executed_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
+            server_default="now()",
+            onupdate=datetime.utcnow,
         )
     )
 
@@ -121,6 +119,7 @@ class Transaction(SQLModel, table=True):
     model_config = ConfigDict(
         validate_assignment=True     
     )
+
 
 from app.modules.user.models import User
 

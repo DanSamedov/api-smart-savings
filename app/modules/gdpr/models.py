@@ -1,11 +1,11 @@
 # app/modules/gdpr/models.py
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4, UUID
 
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy import Column, DateTime, func, Enum as SQLEnum, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import ConfigDict
 
@@ -33,14 +33,22 @@ class GDPRRequest(SQLModel, table=True):
     user_email_snapshot: Optional[str] = Field(default=None)
     user_full_name_snapshot: Optional[str] = Field(default=None)
 
-    request_type: GDPRRequestType = Field(sa_column=Column(SQLEnum(GDPRRequestType, name="gdpr_request_type_enum"), nullable=True))
-    status: GDPRRequestStatus = Field(sa_column=Column(SQLEnum(GDPRRequestStatus, name="gdpr_request_status_enum"), nullable=False, server_default=GDPRRequestStatus.PROCESSING.value))
+    request_type: GDPRRequestType = Field(
+        sa_column=Column(GDPRRequestType.sa_enum(), nullable=True)
+    )
+    status: GDPRRequestStatus = Field(
+        sa_column=Column(
+            GDPRRequestStatus.sa_enum(),
+            nullable=False,
+            server_default=GDPRRequestStatus.PROCESSING.value
+        )
+    )
     refusal_reason: Optional[str] = None
 
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
+            server_default="now()",
             nullable=False,
             index=True
         )
@@ -48,13 +56,13 @@ class GDPRRequest(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(
         sa_column=Column(
             DateTime(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
+            server_default="now()",
+            onupdate=datetime.utcnow,
         )
     )
 
     model_config = ConfigDict(
-        validate_assignment=True    
+        validate_assignment=True
     )
 
 from app.modules.user.models import User

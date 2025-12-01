@@ -1,9 +1,9 @@
 # app/modules/group/models.py
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, TYPE_CHECKING
-from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, func, Numeric, Enum as SQLAlchemyEnum
+from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, Numeric
 from pydantic import ConfigDict
 from app.modules.shared.enums import GroupRole, TransactionType, Currency
 
@@ -17,7 +17,7 @@ class GroupBase(SQLModel):
     current_balance: float = Field(default=0.0, sa_column=Column(Numeric(10, 2)))
     require_admin_approval_for_funds_removal: bool = Field(default=False)
     currency: Currency = Field(
-        sa_column=Column(SQLAlchemyEnum(Currency), default=Currency.EUR, nullable=False)
+        sa_column=Column(Currency.sa_enum(), default=Currency.EUR, nullable=False)
     )
 
 
@@ -26,10 +26,10 @@ class Group(GroupBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default="now()")
     )
     updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default="now()", onupdate=datetime.utcnow)
     )
     members: List["GroupMember"] = Relationship(
         back_populates="group", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
@@ -43,9 +43,8 @@ class Group(GroupBase, table=True):
     )
 
 
-
 class GroupMemberBase(SQLModel):
-    role: GroupRole = Field(sa_column=Column(SQLAlchemyEnum(GroupRole), default=GroupRole.MEMBER))
+    role: GroupRole = Field(sa_column=Column(GroupRole.sa_enum(), default=GroupRole.MEMBER))
     contributed_amount: float = Field(sa_column=Column(Numeric(10, 2), default=0.0))
 
 
@@ -55,7 +54,7 @@ class GroupMember(GroupMemberBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    joined_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    joined_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
 
     group: "Group" = Relationship(back_populates="members")
     user: "User" = Relationship(back_populates="group_memberships")
@@ -68,7 +67,7 @@ class GroupMember(GroupMemberBase, table=True):
 class GroupTransactionMessageBase(SQLModel):
     amount: float = Field(sa_column=Column(Numeric(10, 2), nullable=False))
     type: TransactionType = Field(
-        sa_column=Column(SQLAlchemyEnum(TransactionType)),
+        sa_column=Column(TransactionType.sa_enum()),
         default=TransactionType.GROUP_SAVINGS_DEPOSIT,
     )
 
@@ -79,7 +78,7 @@ class GroupTransactionMessage(GroupTransactionMessageBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    timestamp: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    timestamp: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
 
     group: "Group" = Relationship(back_populates="transaction_messages")
     user: "User" = Relationship()
@@ -95,7 +94,7 @@ class RemovedGroupMember(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    removed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    removed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
 
     model_config = ConfigDict(
         validate_assignment=True     
