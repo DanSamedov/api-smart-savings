@@ -19,8 +19,8 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 
 | Developer | GitHub Username | Responsibilities                                                                                                                                       |
 |------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core backend, DevOps & Frontend** - repo management, authentication, profile & wallet management, savings, GDPR, notifications, CI/CD & frontend dev |
-| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core backend & Frontend** - authentication, profile & wallet management, transactions, savings, testing, SaveBuddy AI & frontend dev                 |
+| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core Backend, DevOps & Frontend** - repo management, authentication, profile & wallet management, savings, GDPR, notifications, CI/CD & frontend dev |
+| Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core Backend & Frontend** - authentication, profile & wallet management, transactions, savings, testing, SaveBuddy AI & frontend dev                 |
 | Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI system, logging, notifications, GDPR, API metrics, research and testing                                   |
 
 ## Table of Contents
@@ -52,44 +52,7 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 ---
 
 
-## Snapshots
-Few snapshots of the frontend screens, backend endpoints, email templates & API responses.
 
-### Frontend view
-| Description       | Preview                                                                |
-|-------------------|------------------------------------------------------------------------|
-| **Landing Page**  | ![Landing Page](assets/images/frontend/landing.png)                    |
-| **User Dashboard** | ![User Dashboard](assets/images/frontend/user_dashboard.png)           |
-| **User Profile**  | ![User Profile](assets/images/frontend/user_profile.png)               |
-| **Group Details** | ![Group Details](assets/images/frontend/group_details.png)             |
-| **Group Members** | ![Group Members](assets/images/frontend/group_members.png)             |
-| **Withdraw from Group** | ![Withdraw from Group](assets/images/frontend/withdraw_from_group.png) |
-| **Data Report Request** | ![Data Report Request](./assets/images/frontend/gdpr_data_request.png) |
-| **Login Page**    | ![Login Page](./assets/images/frontend/login.png)                      |
-
-### API Endpoints (Swagger)
-| Description               | Preview                                                                              |
-|---------------------------|--------------------------------------------------------------------------------------|
-| **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
-| **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_&_gdpr.png) |
-| **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)             |
-| **Admin & Groups**        | ![Admin & Groups Endpoints](./assets/images/endpoints/admin_&_groups.png)            |
-
-### Email Templates
-| Description           | Preview                                                              |
-|-----------------------|----------------------------------------------------------------------|
-| **Login Notification** | ![Login Notification](./assets/images/emails/login_notification.png) |
-| **Reset Password**    | ![Reset Password](./assets/images/emails/reset_password.png)         |
-| **GDPR Data Export**  | ![GDPR Data Export](./assets/images/emails/gdpr_data_export.png)     |
-| **Wallet Deposit**    | ![Wallet Deposit](./assets/images/emails/wallet_deposit.png)         |
-
-### API Responses
-| Description             | Preview                                                                   |
-|-------------------------|---------------------------------------------------------------------------|
-| **Wallet Deposit**      | ![Wallet Deposit](./assets/images/responses/wallet_deposit.png)           |
-| **Wallet Transactions** | ![Wallet Transactions](./assets/images/responses/wallet_transactions.png) |
-
----
 
 ## Architecture
 
@@ -260,6 +223,55 @@ This strategy ensures low-latency responses for frequently accessed endpoints wh
   - **Registry Pattern** (`EMAIL_TEMPLATES`): Maps notification types to their corresponding templates, subjects, and context models in a centralized dictionary, making it simple to add new notification types.
   - **Strategy Pattern** (`EmailProvider` ABC): Defines a common interface for different email providers, allowing interchangeable implementations while maintaining consistent behavior.
   - This architecture ensures the notification system is flexible, maintainable, and easily extensible for new providers or notification types.
+
+---
+
+## Snapshots
+Few snapshots of the frontend screens, backend endpoints, email templates & API responses.
+
+### Frontend View (Desktop)
+| Description       | Preview                                                                |
+|-------------------|------------------------------------------------------------------------|
+| **Landing Page**  | ![Landing Page](assets/images/frontend/landing.png)                    |
+| **Login Page**    | ![Login Page](./assets/images/frontend/login.png)                      |
+| **User Dashboard** | ![User Dashboard](assets/images/frontend/user_dashboard.png)           |
+| **User Profile**  | ![User Profile](assets/images/frontend/user_profile.png)               |
+| **Transactions**  | ![Transactions](assets/images/frontend/transactions.png)               |
+| **Group Details** | ![Group Details](assets/images/frontend/group_details.png)             |
+| **Group Members** | ![Group Members](assets/images/frontend/group_members.png)             |
+| **Group Chat**    | ![Group Chat](assets/images/frontend/group_chat.png)                   |
+| **Withdraw from Group** | ![Withdraw from Group](assets/images/frontend/withdraw_from_group.png) |
+| **Data Report Request** | ![Data Report Request](./assets/images/frontend/gdpr_data_request.png) |
+
+### Frontend View (Mobile)
+| Description       | Preview                                                                |
+|-------------------|------------------------------------------------------------------------|
+| **Mobile Dashboard** | ![Mobile Dashboard](assets/images/frontend/mobile_user_dashboard.png) |
+| **Mobile Groups**    | ![Mobile Groups](assets/images/frontend/mobile_groups.png)            |
+| **Mobile Chat**      | ![Mobile Chat](assets/images/frontend/mobile_group_chat.png)          |
+| **Mobile Transactions** | ![Mobile Transactions](assets/images/frontend/mobile_transactions.png) |
+
+### API Endpoints (Swagger)
+| Description               | Preview                                                                              |
+|---------------------------|--------------------------------------------------------------------------------------|
+| **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
+| **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_&_gdpr.png) |
+| **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)             |
+| **Admin & Groups**        | ![Admin & Groups Endpoints](./assets/images/endpoints/admin_&_groups.png)            |
+
+### Email Templates
+| Description           | Preview                                                              |
+|-----------------------|----------------------------------------------------------------------|
+| **Login Notification** | ![Login Notification](./assets/images/emails/login_notification.png) |
+| **Reset Password**    | ![Reset Password](./assets/images/emails/reset_password.png)         |
+| **GDPR Data Export**  | ![GDPR Data Export](./assets/images/emails/gdpr_data_export.png)     |
+| **Wallet Deposit**    | ![Wallet Deposit](./assets/images/emails/wallet_deposit.png)         |
+
+### API Responses
+| Description             | Preview                                                                   |
+|-------------------------|---------------------------------------------------------------------------|
+| **Wallet Deposit**      | ![Wallet Deposit](./assets/images/responses/wallet_deposit.png)           |
+| **Wallet Transactions** | ![Wallet Transactions](./assets/images/responses/wallet_transactions.png) |
 
 ---
 
