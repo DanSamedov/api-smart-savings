@@ -173,6 +173,43 @@ async def test_contribute_to_group_min_members(group_service, mock_group_repo, m
     assert "At least 2 members" in exc.value.detail or "at least 2 members" in exc.value.detail
 
 @pytest.mark.asyncio
+async def test_contribute_to_group_target_reached(group_service, mock_group_repo, mock_wallet_repo, current_user, background_tasks):
+    group_id = uuid.uuid4()
+    other_user_id = uuid.uuid4()
+    
+    # Mock group with current_balance >= target_balance
+    mock_group_repo.get_group_by_id.return_value = Group(
+        id=group_id, 
+        name="Test Group", 
+        target_balance=1000.0,
+        current_balance=1000.0  # Already at target
+    )
+    
+    # Mock 2 members (meets minimum requirement)
+    mock_group_repo.get_group_members.return_value = [
+        GroupMember(group_id=group_id, user_id=current_user.id),
+        GroupMember(group_id=group_id, user_id=other_user_id)
+    ]
+    
+    # Mock wallet (not needed since we should fail before wallet check, but add for completeness)
+    from app.modules.wallet.models import Wallet
+    mock_wallet = Wallet(id=uuid.uuid4(), user_id=current_user.id, total_balance=1000.0, locked_amount=0.0)
+    mock_wallet_repo.get_wallet_by_user_id.return_value = mock_wallet
+    
+    transaction_in = GroupDepositRequest(amount=50.0)
+    
+    with pytest.raises(HTTPException) as exc:
+        await group_service.contribute_to_group(
+            group_id, 
+            transaction_in, 
+            current_user=current_user,
+            background_tasks=background_tasks
+        )
+    
+    assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "target balance" in exc.value.detail.lower()
+
+@pytest.mark.asyncio
 async def test_delete_group_with_balance(group_service, mock_group_repo, monkeypatch):
     monkeypatch.setattr("app.modules.group.service.settings.MIN_GROUP_THRESHOLD_AMOUNT", 10.0)
     

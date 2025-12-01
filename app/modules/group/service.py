@@ -4,13 +4,14 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import HTTPException, status, BackgroundTasks
+from fastapi import status, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
+from app.core.utils.exceptions import CustomException
 from app.modules.shared.helpers import transform_time
 from app.modules.shared.enums import GroupRole, NotificationType, TransactionType, TransactionStatus
 from app.modules.group.models import GroupMember
@@ -53,11 +54,11 @@ class GroupService:
         """
         group = await self.group_repo.get_group_details_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
 
         is_member = any(str(member.user_id) == str(current_user.id) for member in group.members)
         if not is_member:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+            raise CustomException.forbidden(detail="Not a member of this group")
         return group
 
     async def update_group_settings(self, group_id: uuid.UUID, group_in: GroupUpdate, current_user: User):
@@ -66,15 +67,13 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can update the group")
+            raise CustomException.forbidden(detail="Only admin can update the group")
             
         if group_in.target_balance is not None:
             if group_in.target_balance < group.current_balance:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Target balance cannot be less than current balance"
+                raise CustomException.bad_request(detail="Target balance cannot be less than current balance"
                 )
                 
         return await self.group_repo.update_group(group_id, group_in)
@@ -85,14 +84,12 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can delete the group")
+            raise CustomException.forbidden(detail="Only admin can delete the group")
 
         if group.current_balance > settings.MIN_GROUP_THRESHOLD_AMOUNT:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot delete group with balance greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}"
+            raise CustomException.bad_request(detail=f"Cannot delete group with balance greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}"
             )
 
         deleted = await self.group_repo.delete_group(group_id)
@@ -102,8 +99,7 @@ class GroupService:
                 content={"message": "Group deleted successfully"},
             )
 
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found or could not be deleted"
+        raise CustomException.not_found(detail="Group not found or could not be deleted"
         )
 
     async def get_group_members(self, group_id: uuid.UUID, current_user: User):
@@ -112,12 +108,12 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
 
         # Check if current user is a member
         members = await self.group_repo.get_group_members(group_id)
         if not any(str(m.user_id) == str(current_user.id) for m in members):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+            raise CustomException.forbidden(detail="Not a member of this group")
 
         # Fetch members with details
         members_with_details = await self.group_repo.get_group_members_with_details(group_id)
@@ -129,12 +125,12 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
 
         # Check if current user is a member
         members = await self.group_repo.get_group_members(group_id)
         if not any(str(m.user_id) == str(current_user.id) for m in members):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+            raise CustomException.forbidden(detail="Not a member of this group")
 
         # Fetch transactions
         transactions = await self.group_repo.get_group_transactions(group_id)
@@ -152,32 +148,30 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can add members")
+            raise CustomException.forbidden(detail="Only admin can add members")
 
         members = await self.group_repo.get_group_members(group_id)
         
         # Resolve user_id from stag
         user_to_add = await self.user_repo.get_by_stag(member_in.stag)
         if not user_to_add:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{member_in.stag} does not exist")
+            raise CustomException.not_found(detail=f"{member_in.stag} does not exist")
             
         if any(member.user_id == user_to_add.id for member in members):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{member_in.stag} is already a member")
+            raise CustomException.bad_request(detail=f"{member_in.stag} is already a member")
 
         max_members = settings.MAX_GROUP_MEMBERS or 7
         if len(members) >= max_members:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Groups are limited to {max_members} members maximum")
+            raise CustomException.bad_request(detail=f"Groups are limited to {max_members} members maximum")
 
         # Cooldown validation
         removed_member = await self.group_repo.get_removed_member(group_id, user_to_add.id)
         if removed_member:
             cooldown_days = settings.REMOVE_MEMBER_COOLDOWN_DAYS
             if removed_member.removed_at + timedelta(days=cooldown_days) > datetime.now(timezone.utc):
-                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail=f"{member_in.stag} can rejoin after {cooldown_days} days."
+                 raise CustomException.bad_request(detail=f"{member_in.stag} can rejoin after {cooldown_days} days."
                 )
 
         await self.group_repo.add_member_to_group(group_id, user_to_add.id)
@@ -219,23 +213,21 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin can remove members")
+            raise CustomException.forbidden(detail="Only admin can remove members")
 
         # Check if removing member is an admin
         members = await self.group_repo.get_group_members(group_id)
         member_to_check = next((m for m in members if m.user_id == member_in.user_id), None)
         if member_to_check and member_to_check.role == GroupRole.ADMIN:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove an admin member")
+            raise CustomException.bad_request(detail="Cannot remove an admin member")
 
         # Check if member has contributions
         members = await self.group_repo.get_group_members(group_id)
         member_to_remove = next((m for m in members if m.user_id == member_in.user_id), None)
         if member_to_remove and member_to_remove.contributed_amount > settings.MIN_GROUP_THRESHOLD_AMOUNT:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"Member cannot be removed while they have active contributions greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}. Please withdraw funds first."
+            raise CustomException.bad_request(detail=f"Member cannot be removed while they have active contributions greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}. Please withdraw funds first."
             )
 
         # Get removed member user object before removal
@@ -269,7 +261,7 @@ class GroupService:
                 content={"message": "Member removed successfully"},
             )
 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found in this group")
+        raise CustomException.not_found(detail="Member not found in this group")
 
     async def contribute_to_group(
         self,
@@ -284,31 +276,32 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
 
         members = await self.group_repo.get_group_members(group_id)
         if not any(str(m.user_id) == str(current_user.id) for m in members):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
+            raise CustomException.forbidden(detail="Not a member of this group")
 
         if len(members) < 2:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="At least 2 members are required before a group can accept contributions."
+            raise CustomException.bad_request(detail="At least 2 members are required before a group can accept contributions."
+            )
+
+        # Check if target balance has been reached
+        if group.current_balance >= group.target_balance:
+            raise CustomException.bad_request(detail=f"Group has already reached its target balance of {group.target_balance}"
             )
 
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
         if not wallet:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User wallet not found")
+            raise CustomException.not_found(detail="User wallet not found")
 
         amount_to_contribute = Decimal(str(transaction_in.amount))
         if amount_to_contribute <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Contribution amount must be positive",
+            raise CustomException.bad_request(detail="Contribution amount must be positive",
             )
 
         if wallet.available_balance < amount_to_contribute:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient funds")
+            raise CustomException.bad_request(detail="Insufficient funds")
 
         # Store previous balance for milestone detection
         previous_balance = group.current_balance
@@ -482,42 +475,29 @@ class GroupService:
         """
         group = await self.group_repo.get_group_by_id(group_id)
         if not group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            raise CustomException.not_found(detail="Group not found")
 
         members = await self.group_repo.get_group_members(group_id)
         member = next((m for m in members if str(m.user_id) == str(current_user.id)), None)
         if not member:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this group")
-
-        admin_approval_required = group.require_admin_approval_for_funds_removal and member.role != GroupRole.ADMIN
-        if admin_approval_required:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin approval required for withdrawal",
-            )
+            raise CustomException.forbidden(detail="Not a member of this group")
 
         wallet = await self.wallet_repo.get_wallet_by_user_id(current_user.id)
         if not wallet:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User wallet not found")
+            raise CustomException.not_found(detail="User wallet not found")
 
         amount_to_withdraw = Decimal(str(transaction_in.amount))
         if amount_to_withdraw <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Withdrawal amount must be positive",
+            raise CustomException.bad_request(detail="Withdrawal amount must be positive",
             )
 
         if group.current_balance < amount_to_withdraw:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Insufficient funds in the group",
+            raise CustomException.bad_request(detail="Insufficient funds in the group",
             )
 
         # Validate withdrawal amount against user's contribution
         if member.contributed_amount < amount_to_withdraw:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot withdraw more than contributed amount ({member.contributed_amount})",
+            raise CustomException.bad_request(detail=f"Cannot withdraw more than contributed amount ({member.contributed_amount})",
             )
 
         # Orchestrate atomic operations with transaction handling
@@ -556,9 +536,7 @@ class GroupService:
             
         except Exception as e:
             await self.group_repo.session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
+            raise CustomException.bad_request(detail=str(e),
             )
 
         updated_group = await self.group_repo.get_group_by_id(group_id)

@@ -8,7 +8,6 @@ class Currency(str, Enum):
     USD = "USD"
     PLN = "PLN"
     GBP = "GBP"
-    CAD = "CAD"
     # Application base currency
     BASE_CURRENCY = EUR
 

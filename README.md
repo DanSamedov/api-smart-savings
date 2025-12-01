@@ -250,11 +250,16 @@ This strategy ensures low-latency responses for frequently accessed endpoints wh
 | **Pytest** | Automated testing | Ensures reliability and regression safety |
 | **GitHub Actions** | CI/CD pipeline | Automates testing and deployment |
 
-### Design Principles in Action
+### Design Principles/Patterns in Action
 - **SOLID:** Dependency Injection in routers promotes modular and testable code.  
 - **DRY:** Shared helpers and reusable service methods minimize duplication.  
 - **Separation of Concerns:** Clear flow: *Middleware → Router → Service → Repository*.  
 - **Extensibility:** Notification service follows the **ABC pattern**, allowing easy integration of SMS or push services in the future.
+- **Factory + Registry Pattern:** The email notification system uses a combination of design patterns:
+  - **Factory Pattern** (`EmailProviderFactory`): Dynamically selects the email provider (SMTP or Resend) based on configuration, enabling easy switching between providers without code changes.
+  - **Registry Pattern** (`EMAIL_TEMPLATES`): Maps notification types to their corresponding templates, subjects, and context models in a centralized dictionary, making it simple to add new notification types.
+  - **Strategy Pattern** (`EmailProvider` ABC): Defines a common interface for different email providers, allowing interchangeable implementations while maintaining consistent behavior.
+  - This architecture ensures the notification system is flexible, maintainable, and easily extensible for new providers or notification types.
 
 ---
 
