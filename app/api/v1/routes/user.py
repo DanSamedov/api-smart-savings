@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 from app.core.utils.exceptions import CustomException
 from app.modules.user.models import User
 from app.core.middleware.rate_limiter import limiter
-from app.core.utils.response import standard_response
+from app.core.utils.response import standard_response, FinancialAnalyticsResponse
 from app.api.dependencies import get_current_user, get_user_service, get_redis, get_user_repo
 from app.modules.user.repository import UserRepository
 from app.modules.user.service import UserService
@@ -189,4 +189,33 @@ async def view_login_history(
         status="success",
         message="Login history retrieved successfully",
         data=history
+    )
+
+
+@router.get("/me/financial-analytics", status_code=status.HTTP_200_OK, response_model=FinancialAnalyticsResponse)
+@limiter.limit("5/minute")
+async def get_financial_analytics(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+) -> FinancialAnalyticsResponse:
+    """
+    Retrieve comprehensive financial analytics for the authenticated user.
+    
+    This endpoint aggregates key metrics from wallet transactions and group contributions
+    to provide insights into the user's financial activity, spending patterns, and savings
+    behavior. The data is structured for use in charts and dashboards.
+    
+
+    Returns:
+        FinancialAnalyticsResponse: Standard response containing comprehensive analytics data
+        
+    Raises:
+        HTTPException: 429 Too Many Requests if rate limit exceeded
+    """
+    analytics_data = await user_service.get_financial_analytics(current_user=current_user)
+    
+    return FinancialAnalyticsResponse(
+        data=analytics_data,
+        message="Financial analytics retrieved successfully."
     )
