@@ -85,8 +85,7 @@ class GroupService:
             raise CustomException.forbidden(detail="Only admin can delete the group")
 
         if group.current_balance > settings.MIN_GROUP_THRESHOLD_AMOUNT:
-            raise CustomException.bad_request(detail=f"Cannot delete group with balance greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}"
-            )
+            raise CustomException.bad_request(detail=f"Cannot delete group with balance greater than {settings.MIN_GROUP_THRESHOLD_AMOUNT}")
 
         deleted = await self.group_repo.delete_group(group_id)
         if deleted:

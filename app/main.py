@@ -69,18 +69,7 @@ main_app.add_exception_handler(Exception, error_handlers.generic_exception_handl
 @main_app.get("/")
 @limiter.limit("10/minute")
 def root(request: Request):
-    """
-    Base app endpoint.
-    """
     return standard_response(status="success", message="API is live.")
-
-
-@main_app.get("/docs/swagger", include_in_schema=False)
-async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
-    return get_swagger_ui_html(
-        openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
-    )
-
 
 @main_app.get("/docs/redoc", include_in_schema=False)
 async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
@@ -88,6 +77,11 @@ async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
+@main_app.get("/docs/swagger", include_in_schema=False)
+async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
+    return get_swagger_ui_html(
+        openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
+    )
 
 @main_app.get("/docs/openapi.json", include_in_schema=False)
 async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
@@ -95,10 +89,7 @@ async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
 
 
 @main_app.get("/health")
-async def health_check(request: Request):
-    """
-    API Health check endpoint.
-    """
+async def health_check():
     app_metrics.uptime = get_uptime(app_metrics.startup_time)
     app_metrics.system_metrics = get_system_metrics()
     app_metrics.db_active = await get_db_status()
