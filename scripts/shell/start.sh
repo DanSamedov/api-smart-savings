@@ -9,7 +9,6 @@ while ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$POSTGRES_USER"; do
 done
 
 echo "[START SCRIPT] (i) Running database migrations..."
-alembic downgrade base
 alembic upgrade head
 
 echo "[START SCRIPT] (i) Starting FastAPI application..."
