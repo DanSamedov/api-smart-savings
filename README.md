@@ -19,9 +19,9 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 
 | Developer | GitHub Username | Responsibilities                                                                                                                                       |
 |------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core Backend, DevOps & Frontend** - repo management, authentication, profile & wallet management, savings, GDPR, notifications, CI/CD & frontend dev |
+| Daniel Adediran | [@heisdanielade](https://github.com/heisdanielade) | **Core Backend, DevOps & Frontend** - repo management, authentication, profile & wallet management, savings, GDPR, notifications, CI/CD, SaveBuddy AI & frontend dev |
 | Danylo Samedov | [@DanSamedov](https://github.com/DanSamedov) | **Core Backend & Frontend** - authentication, profile & wallet management, transactions, savings, testing, SaveBuddy AI & frontend dev                 |
-| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI system, logging, notifications, GDPR, API metrics, research and testing                                   |
+| Artem Ruzhevych | [@ArtemRuzhevych](https://github.com/ArtemRuzhevych) | **AI & Backend integrations** - SaveBuddy AI system, logging, notifications, user analytics, GDPR, API metrics, research and testing                                   |
 
 ## Table of Contents
   
@@ -212,6 +212,9 @@ This strategy ensures low-latency responses for frequently accessed endpoints wh
 | **Docker** | Containerization | Simplifies setup and deployment |
 | **Pytest** | Automated testing | Ensures reliability and regression safety |
 | **GitHub Actions** | CI/CD pipeline | Automates testing and deployment |
+| **React** | Frontend | User interface and experience |
+| **Tailwind CSS** | Styling | Responsive and modern design |
+| **Vite** | Build tool | Fast and modern frontend development |
 
 ### Design Principles/Patterns in Action
 - **SOLID:** Dependency Injection in routers promotes modular and testable code.  
@@ -255,9 +258,9 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 | Description               | Preview                                                                              |
 |---------------------------|--------------------------------------------------------------------------------------|
 | **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
-| **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_&_gdpr.png) |
+| **Account & GDPR**        | ![Account Management & GDPR Endpoints](./assets/images/endpoints/account_gdpr.png) |
 | **Wallet & Transactions** | ![Wallet & Transactions Endpoints](./assets/images/endpoints/wallet.png)             |
-| **Admin & Groups**        | ![Admin & Groups Endpoints](./assets/images/endpoints/admin_&_groups.png)            |
+| **Admin & Groups**        | ![Admin & Groups Endpoints](./assets/images/endpoints/admin_groups.png)            |
 
 ### Email Templates
 | Description           | Preview                                                              |
@@ -285,9 +288,9 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 
 ---
 
-## Closing Note
+<!-- ## Closing Note
 
 SmartSave was initially designed as a final-year project by 3 students from the `University of Zielona Gora - Computer Science & Econometrics` but advanced to a production-grade system. It's not just a financial tool but a **trustworthy digital companion** for responsible saving.  
 Built with transparency, collaboration, and user privacy at its core; this project is a foundation for modern, ethical financial technology.
 
-**Thank you for checking out SmartSave! 💚**
+**Thank you for checking out SmartSave! 💚** -->

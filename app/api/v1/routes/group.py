@@ -253,7 +253,7 @@ async def remove_group_member(
 
 
 @router.post("/{group_id}/contribute", status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/minute")
+@limiter.limit("4/minute")
 async def contribute_to_group(
     request: Request,
     group_id: uuid.UUID,
@@ -272,7 +272,7 @@ async def contribute_to_group(
 
 
 @router.post("/{group_id}/remove-contribution", status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/minute")
+@limiter.limit("4/minute")
 async def remove_contribution(
     request: Request,
     group_id: uuid.UUID,
