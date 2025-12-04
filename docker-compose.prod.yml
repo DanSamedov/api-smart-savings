@@ -24,8 +24,6 @@ services:
       - .env
     environment:
       - PORT=3195
-    ports:
-      - "3195:3195"
     depends_on:
       - db
       - redis
