@@ -80,7 +80,7 @@ if ENV != "development":
     logger.addHandler(console_handler)
 
 # File (dev)
-if ENV != "production":
+if ENV != "production" and ENV != "testing":
     log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
     file_handler = RotatingFileHandler(

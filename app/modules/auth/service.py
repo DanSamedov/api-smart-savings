@@ -61,19 +61,22 @@ class AuthService:
             verification_code_expires_at=expires_at,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
-            is_verified=False,
+            is_verified=True,
             is_deleted=False,
         )  # type: ignore
 
         await self.user_repo.create(new_user)
 
-        # Send verification email
+        # Initialize wallet with 10000 balance
+        wallet = Wallet(user_id=new_user.id, total_balance=10000)
+        await self.wallet_repo.create(wallet)
+
+        # Send welcome email instead of verification
         await self.notification_manager.schedule(
             self.notification_manager.send,
             background_tasks=background_tasks,
-            notification_type=NotificationType.VERIFICATION,
+            notification_type=NotificationType.WELCOME,
             recipients=[register_request.email],
-            context={"verification_code": verification_code},
         )
 
     async def verify_user_email(

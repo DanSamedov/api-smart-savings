@@ -94,5 +94,6 @@ class User(UserBase, table=True):
 
 from app.modules.gdpr.models import GDPRRequest
 from app.modules.wallet.models import Wallet, Transaction
+from app.modules.group.models import GroupMember
 
 User.model_rebuild()
