@@ -1,0 +1,50 @@
+services:
+  gateway:
+    image: nginx:alpine
+    container_name: savings-gateway
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - api
+      - frontend
+
+  frontend:
+    image: ${DOCKER_USERNAME}/savings-frontend:latest
+    container_name: savings-frontend
+    restart: always
+
+  api:
+    image: ${DOCKER_USERNAME}/savings-api:latest
+    container_name: savings-api
+    restart: always
+    # Instead of listing vars individually, load the whole file
+    env_file:
+      - .env
+    ports:
+      - "3195:3195"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:17
+    container_name: savings-db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: savings-redis
+    restart: always
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
