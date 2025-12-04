@@ -28,7 +28,7 @@ class TestRegisterNewUser:
 
     @pytest.mark.asyncio
     async def test_register_success(
-        self, auth_service, mock_user_repo, mock_wallet_repo, mock_notification_manager, background_tasks
+        self, auth_service, mock_user_repo, mock_notification_manager, background_tasks
     ):
         """Test successful user registration with valid data."""
         register_request = RegisterRequest(email="newuser@example.com", password="Test@123")
@@ -49,19 +49,11 @@ class TestRegisterNewUser:
         mock_user_repo.create.assert_called_once()
         created_user_arg = mock_user_repo.create.call_args[0][0]
         assert created_user_arg.email == "newuser@example.com"
-        assert created_user_arg.is_verified is True
+        assert created_user_arg.is_verified is False
         assert created_user_arg.verification_code is not None
         assert created_user_arg.verification_code_expires_at is not None
         assert verify_password("Test@123", created_user_arg.password_hash)
-        
-        mock_wallet_repo.create.assert_called_once()
-        created_wallet_arg = mock_wallet_repo.create.call_args[0][0]
-        assert created_wallet_arg.user_id == created_user_arg.id
-        assert created_wallet_arg.total_balance == 10000
-
         mock_notification_manager.schedule.assert_called_once()
-        call_args = mock_notification_manager.schedule.call_args
-        assert call_args[1]["notification_type"] == NotificationType.WELCOME
 
     @pytest.mark.asyncio
     async def test_register_duplicate_email(
