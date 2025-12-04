@@ -20,9 +20,10 @@ services:
     image: ${DOCKER_USERNAME}/savings-api:latest
     container_name: savings-api
     restart: always
-    # Instead of listing vars individually, load the whole file
     env_file:
       - .env
+    environment:
+      - PORT=3195
     ports:
       - "3195:3195"
     depends_on:
