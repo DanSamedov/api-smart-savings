@@ -35,8 +35,9 @@ main_app.add_middleware(LoggingMiddleware)
 
 if settings.ALLOWED_ORIGINS:
     if isinstance(settings.ALLOWED_ORIGINS, str):
+        # Added 'if origin.strip()' at the end to ignore empty strings from trailing commas
         allowed_origins = [
-            origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",")
+            origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",") if origin.strip()
         ]
     else:
         allowed_origins = [str(origin).strip() for origin in settings.ALLOWED_ORIGINS]
@@ -47,8 +48,8 @@ main_app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type", "accept", "x-requested-with"],
+    allow_methods=["*"],  # It's usually safe to allow all methods (GET, POST, etc)
+    allow_headers=["*"],  # RECOMMENDATION: Allow all headers to prevent blocking custom ones
 )
 
 
