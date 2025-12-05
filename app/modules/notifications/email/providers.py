@@ -11,7 +11,7 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
-from app.core.utils.helpers import mask_email
+from app.core.utils.helpers import mask_email, mask_data
 
 
 class EmailProvider(ABC):
@@ -29,7 +29,7 @@ class ResendProvider(EmailProvider):
 
     def __init__(self):
         if not settings.RESEND_API_KEY:
-            logger.warning("RESEND_API_KEY is not set. Email sending via Resend will fail.")
+            logger.warning("RESEND_API_KEY is not set. Email sending via Resend provider will fail.")
         resend.api_key = settings.RESEND_API_KEY
 
     async def send_email(self, recipients: List[str], subject: str, html_content: str,
@@ -63,10 +63,10 @@ class ResendProvider(EmailProvider):
                 None,
                 partial(resend.Emails.send, email_params)
             )
-            logger.info(f"Email '{subject}' sent to {mask_email(recipients[0])} via Resend.")
+            logger.info(f"Email '{mask_email(subject)}' sent to {mask_email(recipients[0])} via Resend.")
 
         except Exception as e:
-            logger.exception(f"Failed to send email '{subject}' to {mask_email(recipients[0])} via Resend: {e}")
+            logger.exception(f"Failed to send email '{mask_data(subject)}' to {mask_email(recipients[0])} via Resend: {e}")
             raise e
 
 
@@ -103,10 +103,10 @@ class SMTPProvider(EmailProvider):
             )
 
             await self.fastmail.send_message(message)
-            logger.info(f"Email '{subject}' sent to {mask_email(recipients[0])} via SMTP.")
+            logger.info(f"Email '{mask_data(subject)}' sent to {mask_email(recipients[0])} via SMTP.")
 
         except Exception as e:
-            logger.exception(f"Failed to send email '{subject}' to {mask_email(recipients[0])} via SMTP: {e}")
+            logger.exception(f"Failed to send email '{mask_data(subject)}' to {mask_email(recipients[0])} via SMTP: {e}")
             raise e
 
 

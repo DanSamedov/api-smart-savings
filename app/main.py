@@ -102,6 +102,8 @@ async def health_check():
             "hostname": f"api-{app_name.lower()}",
             "db_status": "running" if app_metrics.db_active else "down",
             "last_request_latency_ms": app_metrics.latest_response_latency,
+            "last_request_path": app_metrics.latest_request_path,
+            "last_request_method": app_metrics.latest_request_method,
             "system_metrics": app_metrics.system_metrics
         }
     )
