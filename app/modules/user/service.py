@@ -116,16 +116,16 @@ class UserService:
         # Prevent redundant changes
         if new_email == old_email:
             raise CustomException.e400_bad_request(
-                "The new email must be different from your current email."
+                "New email must be different from your current email."
             )
 
         # Prevent email duplication
-        if await self.user_repo.get_by_email(new_email):
+        if await self.user_repo.get_by_email_or_none(new_email):
             raise CustomException.e409_conflict("An account with this email already exists.")
 
         # Verify user password
         if not verify_password(
-            plain_password=change_email_request.password,
+            plain_password=change_email_request.password.get_secret_value(),
             hashed_password=current_user.password_hash,
         ):
             raise CustomException.e403_forbidden("Invalid password.")
@@ -144,12 +144,21 @@ class UserService:
         await self.user_repo.update(current_user, updates)
         await invalidate_cache(redis, f"user_current:{old_email}")
 
-        # Send verification email
+        # Send notification to old email
         await self.notification_manager.schedule(
             self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.EMAIL_CHANGE_NOTIFICATION,
-            recipients=[new_email]
+            recipients=[old_email]
+        )
+
+        # Send verification code to new email
+        await self.notification_manager.schedule(
+            self.notification_manager.send,
+            background_tasks=background_tasks,
+            notification_type=NotificationType.VERIFICATION,
+            recipients=[new_email],
+            context={"verification_code": verification_code}
         )
 
     async def get_financial_analytics(self, current_user: User) -> dict[str, Any]:

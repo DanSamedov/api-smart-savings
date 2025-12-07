@@ -103,15 +103,19 @@ class AuthService:
             user,
             updates
         )
-        wallet = Wallet(user_id=user.id) 
-        await self.wallet_repo.create(wallet)
+        # Check if wallet exists (distinguishes new user vs email change)
+        existing_wallet = await self.wallet_repo.get_wallet_by_user_id(user.id)
+        
+        if not existing_wallet:
+            wallet = Wallet(user_id=user.id) 
+            await self.wallet_repo.create(wallet)
 
-        await self.notification_manager.schedule(
-            self.notification_manager.send,
-            background_tasks=background_tasks,
-            notification_type=NotificationType.WELCOME,
-            recipients=[user.email],
-        )
+            await self.notification_manager.schedule(
+                self.notification_manager.send,
+                background_tasks=background_tasks,
+                notification_type=NotificationType.WELCOME,
+                recipients=[user.email],
+            )
 
     async def resend_verification_code(
         self,
