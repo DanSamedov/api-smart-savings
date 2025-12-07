@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from uuid import uuid4
 from fastapi import HTTPException
 
@@ -133,6 +133,7 @@ class TestVerifyUserEmail:
         """Test successful email verification with valid code."""
         verify_request = VerifyEmailRequest(email="test@example.com", verification_code="123456")
         mock_user_repo.get_by_email_or_none.return_value = sample_user
+        mock_wallet_repo.get_wallet_by_user_id = AsyncMock(return_value=None)
 
         await auth_service.verify_user_email(verify_request, background_tasks)
 
@@ -230,6 +231,7 @@ class TestVerifyUserEmail:
         """Test that a wallet is created after successful verification."""
         verify_request = VerifyEmailRequest(email="test@example.com", verification_code="123456")
         mock_user_repo.get_by_email_or_none.return_value = sample_user
+        mock_wallet_repo.get_wallet_by_user_id = AsyncMock(return_value=None)
 
         await auth_service.verify_user_email(verify_request, background_tasks)
 
