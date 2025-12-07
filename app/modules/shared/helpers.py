@@ -7,16 +7,13 @@ from zoneinfo import ZoneInfo
 import httpx
 
 
-def validate_password_strength(password: str) -> str:
+def validate_password_strength(password: str):
     """
     Validate password meets security requirements.
     
-    Returns:
-        str: The validated password
-
     Raises:
         ValueError: If password doesn't meet requirements
-    """
+    """ 
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters long")
     if not any(c.isupper() for c in password):
@@ -25,7 +22,6 @@ def validate_password_strength(password: str) -> str:
         raise ValueError("Password must contain at least one lowercase letter")
     if not any(c.isdigit() for c in password):
         raise ValueError("Password must contain at least one digit")
-    return password
 
 
 def generate_secure_code(length=6):

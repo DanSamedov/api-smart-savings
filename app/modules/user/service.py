@@ -62,13 +62,13 @@ class UserService:
         """
         Update the currently authenticated user's password, verifying the current password first.
         """
-        current_pass = change_password_request.current_password
+        current_pass = change_password_request.current_password.get_secret_value()
         
         # Verify old password
         if not verify_password(plain_password=current_pass, hashed_password=current_user.password_hash):
             CustomException.e403_forbidden("Invalid current password.")
         
-        new_hashed_password = hash_password(change_password_request.new_password)
+        new_hashed_password = hash_password(change_password_request.new_password.get_secret_value())
         # Update via repository
         updates = {"password_hash": new_hashed_password}
         await self.user_repo.update(
