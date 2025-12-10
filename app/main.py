@@ -10,13 +10,16 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.core.middleware.rate_limiter import limiter
 from app.core.setup.instance import application
-from app.api.dependencies import authenticate_admin
+from app.api.dependencies import authenticate_admin, get_redis
+from redis.asyncio import Redis
 from app.api.routers import main_router
 from app.core.config import settings
 from app.core.middleware.logging import LoggingMiddleware
 from app.core.utils import error_handlers
 from app.core.utils.response import standard_response
-from app.infra.metrics.metrics_data import Metrics_V2, get_uptime, get_system_metrics, get_db_status
+from app.infra.metrics.metrics_data import Metrics_V2, get_uptime, get_system_metrics, get_db_status, get_redis_status
+from app.core.utils.cache import cache_or_get
+
 
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
@@ -88,22 +91,43 @@ async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
     return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=main_app.routes)
 
 
-@main_app.get("/health")
-async def health_check():
-    app_metrics.uptime = get_uptime(app_metrics.startup_time)
-    app_metrics.system_metrics = get_system_metrics()
-    app_metrics.db_active = await get_db_status()
 
-    return standard_response(
-        status="success",
-        message="API health status",
-        data= {
+# =======================================
+# API Health Check
+# =======================================
+async def get_health_check(redis: Redis):
+    async def fetch_health_data():
+        app_metrics.uptime = get_uptime(app_metrics.startup_time)
+        app_metrics.system_metrics = get_system_metrics()
+        app_metrics.db_active = await get_db_status()
+        app_metrics.cache_active = await get_redis_status(redis)
+
+        return {
             "uptime": app_metrics.uptime,
             "hostname": f"api-{app_name.lower()}",
             "db_status": "running" if app_metrics.db_active else "down",
+            "cache_status": "running" if app_metrics.cache_active else "down",
             "last_request_latency_ms": app_metrics.latest_response_latency,
             "last_request_path": app_metrics.latest_request_path,
             "last_request_method": app_metrics.latest_request_method,
             "system_metrics": app_metrics.system_metrics
         }
+
+    return await cache_or_get(
+        redis=redis,
+        key="api_health",
+        fetch_func=fetch_health_data,
+        ttl=120,  # Cache for 2 minutes
+    )
+
+
+@main_app.get("/health")
+async def health_check(redis: Redis = Depends(get_redis)):
+
+    response = await get_health_check(redis)
+
+    return standard_response(
+        status="success",
+        message="API health status",
+        data=response 
     )
