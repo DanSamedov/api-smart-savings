@@ -1,17 +1,18 @@
 # 💰 SmartSave - GDPR-Compliant Savings App (EU/Poland)
 
 ![API Version](https://img.shields.io/badge/API%20version-v1.0.0-blue.svg)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009485.svg?logo=fastapi&logoColor=white)](#)
-[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff)](#)
-[![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=Pydantic&logoColor=white)](#) 
-[![Pytest](https://img.shields.io/badge/Pytest-fff?logo=pytest&logoColor=000)](#)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](#)
-[![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)](#)
-[![Redis](https://img.shields.io/badge/Redis-%23DD0031.svg?logo=redis&logoColor=white)](#)
-[![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnubash&logoColor=fff)](#)
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009485.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff)](https://www.python.org/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=Pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Pytest](https://img.shields.io/badge/Pytest-fff?logo=pytest&logoColor=000)](https://docs.pytest.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff)](https://www.docker.com/)
+[![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-%23DD0031.svg?logo=redis&logoColor=white)](https://redis.io/)
+[![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnubash&logoColor=fff)](https://www.gnu.org/software/bash/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 
 ## Overview
+
 **SmartSave** is a GDPR-compliant smart savings application designed for users in the EU, focusing on transparency, collaboration, and security.  
 It combines traditional savings with AI-powered financial insights via the **SaveBuddy AI assistant**, allowing users to manage personal and group savings easily, while keeping their data private and secure.  
 
@@ -28,21 +29,20 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 1. [Features](#features)  
 2. [Snapshots](#snapshots)  
 3. [Architecture](#architecture)  
-4. [Authentication & Authorization](#authentication--authorization)  
-5. [GDPR Compliance](#gdpr-compliance)  
-6. [Core Savings](#core-savings)  
-7. [Technologies & Design Decisions](#technologies--design-decisions)
-8. [Future Improvements](#future-improvements)  
-9. [Closing Note](#closing-note)
-
----
+4. [Authentication](#authentication)  
+5. [Authorization](#authorization)  
+6. [GDPR Compliance](#gdpr-compliance)  
+7. [Core Savings](#core-savings)  
+8. [Technologies & Design Decisions](#technologies--design-decisions)
+9. [Future Improvements](#future-improvements)  
+10. [Closing Note](#closing-note)
 
 ## Features
 
 - Individual and group savings management  
 - AI savings assistant (**SaveBuddy**) for automation, requires user consent  
 - GDPR-compliant data handling and user privacy management  
-- Email-based OTP verification and secure login (JWT & OAuth) 
+- Email-based OTP verification and secure login (JWT & OAuth)
 - Detailed requests logging with hashed IPs  
 - Rate limiting, and background email notifications  
 - CI/CD integration for automated deployments  
@@ -51,25 +51,26 @@ It combines traditional savings with AI-powered financial insights via the **Sav
 
 ---
 
-
-
-
 ## Architecture
 
 ### Monorepo & Modular Design
+
 SmartSave uses a **modular architecture** within a **monorepo** setup.  
 Each feature lives in its own module under the `modules/` directory, designed for separation of concerns and ease of scaling.
 
 **Modules:**
+
 - `auth` — authentication and authorization logic  
 - `gdpr` — GDPR compliance and user data management  
 - `user` — user profile and preferences  
+- `rbac` — admin actions and access control  
 - `wallet` — wallet creation and balance management  
 - `savings` — individual and group savings  
 - `notifications` — email-based user notifications  
 - `shared` — reusable schemas and utilities
 
 Each module contains:
+
 ```yaml
   repository.py # Database access layer
   models.py # Database models (except Auth module)
@@ -79,10 +80,11 @@ Each module contains:
 ```
 
 ### API & Infrastructure Highlights
+
 - **Versioning:** `/v1/...` URL structure for all endpoints  
 - **Docs:** Swagger & ReDoc available at `/v1/docs` (protected with Basic Auth)  
 - **Rate Limiting:** `Per-minute/hour` restrictions per IP  
-- **Redis:** Used for `caching` and fast data retrieval with reasonable TTLs + manual cache invalidation 
+- **Redis:** Used for `caching` and fast data retrieval with reasonable TTLs + manual cache invalidation
 - **Logging:** Structured `JSON logs` per request, with hashed IP addresses  
 - **Makefile:** Common commands for Docker, Alembic, and Pytest  
 - **Scripts:** Dev and prod startup scripts in `scripts/`  
@@ -91,111 +93,66 @@ Each module contains:
 - **Environment:** `.env.example` provided for configuration variables  
 
 **Backend System Flow:**  
+
 ```bash
   Middleware → Router → Service → Repository → Database
 ```
+
 ---
 
-## Authentication & Authorization
+## Authentication
 
-1. User registers with **email** and **password**.  
-2. A **6-digit OTP** is sent to the user’s email for verification.  
-3. Once verified, `user.is_verified` is set to `True`.  
-4. On successful login, a **JWT** is issued and used for all authenticated requests.  
-5. Failed logins increment `user.failed_login_attempts`; exceeding the limit locks the account.  
-6. Locked accounts trigger a **notification email** to the user.  
-7. Roles are defined as:
-   - **USER:** Full access to own data only  
-   - **ADMIN:** Limited create/read access except GDPR/user/wallet data  
-   - **SUPER_ADMIN:** Full CRUD access (excluding wallet/transactions modification)  
+SmartSave uses a secure, stateless authentication system built with **JWT (JSON Web Tokens)** and **Email-based OTP (One-Time Password)** verification.
 
-Wallets and transactions are **immutable** - they cannot be modified or deleted once created.
+- **Registration**: Secure onboarding with 6-digit OTP verification.
+- **Security**: Account locking after failed attempts and real-time login notifications.
+- **Global Logout**: Immediate token invalidation via versioning.
+
+👉 **[Read the full Authentication breakdown here](docs/features/AUTHENTICATION.md)**
+
+---
+
+## Authorization
+
+Permissions are managed through a fine-grained **Role-Based Access Control (RBAC)** system, ensuring data integrity and user privacy.
+
+- **Roles**: Distinct permissions for `USER`, `ADMIN`, and `SUPER_ADMIN`.
+- **Integrity**: Financial data (wallets and transactions) is immutable and append-only.
+- **RBAC**: Guarded endpoints using FastAPI dependency injection.
+
+👉 **[Read the full Authorization breakdown here](docs/features/AUTHORIZATION.md)**
 
 ---
 
 ## GDPR Compliance
 
-SmartSave was built around the **three core GDPR principles**:
-1. **Right to Access Data**  
-2. **Right to Modify Data**  
-3. **Right to Delete Data**
+Privacy is a first-class citizen in SmartSave. The application is built around the core principles of the **General Data Protection Regulation (GDPR)**.
 
-### Key Implementations
-- IP addresses are stored as **irreversible hashes** in logs.  
-- Users can **request a data report**, delivered as a **password-protected PDF** via email.  
-- Data modification is allowed through the app or via support requests.  
-- Account deletions are **soft-deleted** for 365 days before anonymization (duration is easily configurable).  
-- **Anonymization Process:**
-  - All PII replaced with random values.
-  - User can no longer log in.
-  - Maintains referential integrity for financial auditing.
-- Logs older than **30 days** are auto-deleted.
-- GDPR requests are logged in a dedicated `GDPRRequest` table.  
-- After two years, even the anonymized GDPR requests are removed.
+- **Data Rights**: Full support for Right to Access (Encrypted PDF exports) and Right to Forget (Anonymization).
+- **Log Privacy**: Irreversible hashing of IP addresses in all system logs.
+- **Consent**: AI-powered features like **SaveBuddy** require explicit user consent.
+
+👉 **[Read the full GDPR Compliance breakdown here](docs/features/GDPR.md)**
 
 ---
 
 ## Caching with Redis
 
-To improve performance and reduce database load, we implemented **Redis caching** for frequently accessed endpoints, i.e:
+To improve performance and reduce database load, we implemented **Redis caching** for frequently accessed endpoints, optimizing both latency and scalability.
 
-- `GET /user/me`
-- `GET /wallet/transactions`
-
-### How It Works
-
-1. **Cache Key Naming:**  
-   Keys follow a consistent pattern to avoid collisions and allow easy invalidation:
-   - Current user: `user_current:{user_email}`
-   - Wallet transactions: `wallet_transactions:{user_id}:page:{page}:size:{page_size}`
-
-2. **Cache Retrieval:**  
-   Before hitting the database, the application checks Redis for the cached data.  
-   - If a cache hit occurs, the JSON data is returned immediately.
-   - If a cache miss occurs, the data is fetched from the database, cached in Redis, and then returned.
-
-3. **Time-to-Live (TTL):**  
-   Cached data expires after a default TTL (10 minutes) / custom TTL set for each cache store, to ensure freshness.
-
-4. **Cache Invalidation:**  
-   Whenever the underlying data changes (e.g., user updates, new transactions), the relevant cache keys are invalidated automatically to prevent stale data.
-
-5. **Performance Impact:**  
-   - Cache miss: ~124–150ms (includes DB query)  
-   - Cache hit: ~50-80ms (Redis retrieval + deserialization)  
-
-This strategy ensures low-latency responses for frequently accessed endpoints while keeping the database load minimal.
-
+👉 **[Read the full Caching breakdown here](docs/features/CACHING.md)**
 
 ---
 
 ## Core Savings
 
-### Individual Savings
-- Each goal (e.g., *“Buy a bicycle”*) is a single independent saving entry.
-- Funds are allocated from the user’s wallet.
-- `user.locked_amount` tracks funds currently in use for savings/goals.
+SmartSave provides a comprehensive system for individual and collaborative savings, backed by a secure virtual wallet.
 
-### Group Savings
-- Groups have **2–7 members** and one or two admins.  
-- Each group focuses on **one shared goal**.  
-- Contributions and withdrawals appear as **chat-like transactions**.  
-- Admins can enable approval for fund withdrawals.  
-- Users violating group rules (e.g., unauthorized withdrawals) are **banned** from rejoining for 7 days.  
-- Group balances are **derived from members’ wallets** — groups have no separate wallets.  
-- Groups trigger automatic notifications for:
-  - Added/removed members  
-  - Contributions  
-  - Target reached (50% or 100%)  
+- **Individual Goals**: Set personal targets and track progress.
+- **Group Squads**: Save together with shared goals and real-time history.
+- **Wallet Hub**: Centralized balance management with multi-currency support.
 
-### Wallet System
-- Each verified user automatically gets **one wallet**.  
-- Wallet fields:
-  - `total_balance`
-  - `locked_amount`
-  - Computed `available_balance = total_balance - locked_amount`  
-- Base app currency is **EUR**, but users can select from **4 additional currencies** for frontend display.  
-- Exchange rates are fetched from an external API and cached in the DB.
+👉 **[Read the full Savings & Wallet breakdown here](docs/features/SAVINGS.md)**
 
 ---
 
@@ -217,6 +174,7 @@ This strategy ensures low-latency responses for frequently accessed endpoints wh
 | **Vite** | Build tool | Fast and modern frontend development |
 
 ### Design Principles/Patterns in Action
+
 - **SOLID:** Dependency Injection in routers promotes modular and testable code.  
 - **DRY:** Shared helpers and reusable service methods minimize duplication.  
 - **Separation of Concerns:** Clear flow: *Middleware → Router → Service → Repository*.  
@@ -230,9 +188,11 @@ This strategy ensures low-latency responses for frequently accessed endpoints wh
 ---
 
 ## Snapshots
+
 Few snapshots of the frontend screens, backend endpoints, email templates & API responses.
 
 ### Frontend View (Desktop)
+
 | Description       | Preview                                                                |
 |-------------------|------------------------------------------------------------------------|
 | **Landing Page**  | ![Landing Page](assets/images/frontend/landing.png)                    |
@@ -247,6 +207,7 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 | **Data Report Request** | ![Data Report Request](./assets/images/frontend/gdpr_data_request.png) |
 
 ### Frontend View (Mobile)
+
 | Description       | Preview                                                                |
 |-------------------|------------------------------------------------------------------------|
 | **Mobile Dashboard** | ![Mobile Dashboard](assets/images/frontend/mobile_user_dashboard.png) |
@@ -255,6 +216,7 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 | **Mobile Transactions** | ![Mobile Transactions](assets/images/frontend/mobile_transactions.png) |
 
 ### API Endpoints (Swagger)
+
 | Description               | Preview                                                                              |
 |---------------------------|--------------------------------------------------------------------------------------|
 | **Authentication**        | ![Authentication Endpoints](./assets/images/endpoints/auth.png)                      |
@@ -263,6 +225,7 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 | **Admin & Groups**        | ![Admin & Groups Endpoints](./assets/images/endpoints/admin_groups.png)            |
 
 ### Email Templates
+
 | Description           | Preview                                                              |
 |-----------------------|----------------------------------------------------------------------|
 | **Login Notification** | ![Login Notification](./assets/images/emails/login_notification.png) |
@@ -271,6 +234,7 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 | **Wallet Deposit**    | ![Wallet Deposit](./assets/images/emails/wallet_deposit.png)         |
 
 ### API Responses
+
 | Description             | Preview                                                                   |
 |-------------------------|---------------------------------------------------------------------------|
 | **Wallet Deposit**      | ![Wallet Deposit](./assets/images/responses/wallet_deposit.png)           |
@@ -288,9 +252,9 @@ Few snapshots of the frontend screens, backend endpoints, email templates & API 
 
 ---
 
-<!-- ## Closing Note
+## Closing Note
 
 SmartSave was initially designed as a final-year project by 3 students from the `University of Zielona Gora - Computer Science & Econometrics` but advanced to a production-grade system. It's not just a financial tool but a **trustworthy digital companion** for responsible saving.  
 Built with transparency, collaboration, and user privacy at its core; this project is a foundation for modern, ethical financial technology.
 
-**Thank you for checking out SmartSave! 💚** -->
+**Thank you for checking out SmartSave! 💚**
