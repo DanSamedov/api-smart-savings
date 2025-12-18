@@ -86,6 +86,7 @@ This section provides guidelines for naming cache keys, TTL, and general caching
 | Lists/collections          | `{entity}_list:{filter}`              | `users_list:active`                  |
 
 **Tips:**
+
 - Always include user ID/email for user-specific data.
 - Avoid very long keys; use readable identifiers.
 
@@ -100,7 +101,6 @@ This section provides guidelines for naming cache keys, TTL, and general caching
 ```python
 CACHE_TTL = 300  # Default TTL in seconds
 ```
-
 
 ## Code Review & Pull Requests
 

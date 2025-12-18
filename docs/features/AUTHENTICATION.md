@@ -25,8 +25,8 @@ SmartSave uses a combination of **Email-based OTP (One-Time Password)** for veri
 
 ### 3. Account Security & Protection
 
-- **Password Hashing**: Passwords are never stored in plain text. We use robust hashing algorithms (like Argon2 or BCrypt) via `Passlib`.
-- **Failed Login Protection**: To mitigate brute-force attacks, the system tracks failed login attempts.
+- **Password Hashing**: Passwords are never stored in plain text. We use robust hashing algorithms (SHA256) via `hashlib`, `bcrypt` and `Passlib`.
+- **Failed Login Protection**: To prevent brute-force attacks, the system tracks failed login attempts.
 - **Account Locking**: If a user exceeds the maximum allowed failed attempts (e.g., 5), the account is automatically locked, and the user is notified via email with instructions for unlocking (usually through a password reset).
 - **Login Notifications**: Users receive an email alert whenever a new login is detected, including the IP address and approximate location.
 

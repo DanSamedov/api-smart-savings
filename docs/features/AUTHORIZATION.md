@@ -1,6 +1,6 @@
 # Authorization & Role-Based Access Control (RBAC)
 
-SmartSave implements a robust **Role-Based Access Control (RBAC)** system to ensure that users have exactly the permissions they need—and nothing more. This follows the **Principle of Least Privilege (PoLP)**.
+SmartSave implements a robust **Role-Based Access Control (RBAC)** system to ensure that users have exactly the permissions they need and nothing more. This follows the **Principle of Least Privilege (PoLP)**.
 
 ---
 
