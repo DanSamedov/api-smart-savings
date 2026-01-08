@@ -6,7 +6,7 @@ import sys
 import time
 from typing import Optional
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -127,6 +127,13 @@ def get_request_log_message(status_code: int) -> str:
 # ---------------------------
 # Request logging middleware
 # ---------------------------
+def set_latest_latency_filtered(req: Request, ptime: float):
+    """Filter `health` endpoint from being set as latest req latency."""
+    from app.main import app_metrics
+    last_segment = PurePosixPath(req.url.path).name  # Only skip if the last segment of the path is 'health'
+    if last_segment != "health" and "admin" not in req.url.path:
+        app_metrics.set_latest_response_latency(ptime, req.url.path, req.method)
+
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Import here to avoid circular dependency
@@ -143,7 +150,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             from slowapi.errors import RateLimitExceeded
 
             process_time = (time.time() - start_time) * 1000
-            app_metrics.set_latest_response_latency(process_time)
+            set_latest_latency_filtered(req=request, ptime=process_time)
 
             if isinstance(exc, RateLimitExceeded):
                 status_code = 429
@@ -168,7 +175,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # Normal requests
         process_time = (time.time() - start_time) * 1000
-        app_metrics.set_latest_response_latency(process_time)
+        set_latest_latency_filtered(req=request, ptime=process_time)
         
         message = get_request_log_message(response.status_code)
         

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import psutil
 from pydantic import BaseModel
 from sqlmodel import select
+from redis.asyncio import Redis
 
 
 class Metrics:
@@ -15,6 +16,12 @@ class Metrics:
         self.latest_response_latency: float = 0.0
 
     def set_latest_response_latency(self, latency: float):
+        """
+        Sets latest_response_latency.
+        
+        Args:
+            latency (float): The response latency in milliseconds.
+        """
         self.latest_response_latency = latency
 
 
@@ -23,10 +30,23 @@ class Metrics_V2(BaseModel):
     uptime: str = ''
     system_metrics: dict = {}
     db_active: bool = False
+    cache_active: bool = False
+    latest_request_path: str = ""
+    latest_request_method: str = ""
     latest_response_latency: float = 0.0
 
-    def set_latest_response_latency(self, latency: float) -> None:
+    def set_latest_response_latency(self, latency: float, path: str, method: str) -> None:
+        """
+        Sets latest_response_latency, latest_request_path and latest_request_method.
+        
+        Args:
+            latency (float): The response latency in milliseconds.
+            path (str): The path of the request.
+            method (str): The HTTP method of the request.
+        """
         self.latest_response_latency = latency
+        self.latest_request_path = path
+        self.latest_request_method = method
 
 
 def get_uptime(start_time: datetime) -> str:
@@ -69,3 +89,14 @@ async def get_db_status() -> bool:
             return True
         except Exception:
             return False
+
+
+async def get_redis_status(redis_client: Redis) -> bool:
+    """
+    Check Redis connectivity status.
+    """
+    try:
+        ok = await redis_client.ping()
+        return ok is True
+    except Exception:
+        return False

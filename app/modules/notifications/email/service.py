@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.core.config import TEMPLATES_DIR
 from app.core.middleware.logging import logger
-from app.core.utils.helpers import mask_email
+from app.core.utils.helpers import mask_email, mask_data
 from app.modules.notifications.email.registry import EMAIL_TEMPLATES
 from app.modules.notifications.email.providers import EmailProviderFactory
 from app.modules.notifications.schemas import frontend_url, app_name, BaseEmailContext
@@ -33,7 +33,7 @@ class EmailNotificationService(NotificationService):
             await self.provider.send_email(recipients, subject, html_content, attachments)
 
         except Exception as e:
-            logger.error(f"Failed to send email '{subject}' to {mask_email(recipients[0])}. Check provider logs for details.")
+            logger.error(f"Failed to send email '{mask_data(subject)}' to {mask_email(recipients[0])}. Check provider logs for details.")
 
     def _enrich_context(self, notification_type: NotificationType, context: Dict) -> Dict:
         """Autofill missing or computed context values."""

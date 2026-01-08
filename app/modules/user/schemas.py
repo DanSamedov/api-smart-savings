@@ -26,8 +26,9 @@ class ChangePasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_password_strength(v)
+    def validate_password(cls, v: SecretStr) -> SecretStr:
+        validate_password_strength(v.get_secret_value())
+        return v
 
 
 class ChangeEmailRequest(BaseModel):
