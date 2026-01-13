@@ -6,8 +6,10 @@ from datetime import datetime, timezone, timedelta
 from fastapi import Request, BackgroundTasks
 from redis.asyncio import Redis
 
+from app.core.middleware.logging import logger
 from app.core.utils.cache import invalidate_cache
 from app.core.utils.exceptions import CustomException
+from app.core.utils.profanity_check import is_text_allowed_async
 from app.modules.user.models import User
 from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 from app.modules.shared.enums import NotificationType
@@ -46,11 +48,16 @@ class UserService:
         if not update_data:
             return {"message": "No changes provided."}
 
-        # Check stag uniqueness (if user provided one)
         if "stag" in update_data and update_data["stag"]:
+            # Profanity check for stag
+            if not await is_text_allowed_async(update_data["stag"]):
+                logger.warning(f"Profanity detected in stag: {update_data['stag']}")
+                raise CustomException.e400_bad_request("given stag is forbidden")
+        
+            # Check stag uniqueness (if user provided one)
             existing_user = await self.user_repo.get_by_stag(update_data["stag"])
             if existing_user and existing_user.id != current_user.id:
-                raise CustomException.e400_bad_request("stag already taken")
+                raise CustomException.e400_bad_request("stag is already taken")
 
         user = await self.user_repo.get_by_email(current_user.email)
         await self.user_repo.update(user, update_data)

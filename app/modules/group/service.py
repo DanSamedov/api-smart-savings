@@ -74,6 +74,21 @@ class GroupService:
             raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
             raise CustomException.forbidden(detail="Only admin can update the group")
+        
+        # Get the update data
+        update_data = group_in.model_dump(exclude_unset=True, exclude_none=True)
+        
+        # Enforce immutability: is_solo cannot be changed after creation
+        if 'is_solo' in update_data and update_data['is_solo'] != group.is_solo:
+            raise CustomException.bad_request(
+                detail="Group type (solo/squad) cannot be changed after creation"
+            )
+        
+        # Enforce solo group constraint: solo groups cannot have admin approval for funds removal
+        if group.is_solo and 'require_admin_approval_for_funds_removal' in update_data:
+            if update_data['require_admin_approval_for_funds_removal'] is True:
+                # Override to False for solo groups
+                group_in.require_admin_approval_for_funds_removal = False
                 
         return await self.group_repo.update_group(group_id, group_in)
 
@@ -149,6 +164,9 @@ class GroupService:
             raise CustomException.not_found(detail="Group not found")
         if not await self.group_repo.is_user_admin(group_id, current_user.id):
             raise CustomException.forbidden(detail="Only admin can add members")
+
+        if group.is_solo:
+            raise CustomException.bad_request(detail="Cannot add members to a solo group")
 
         members = await self.group_repo.get_group_members(group_id)
         
@@ -281,7 +299,7 @@ class GroupService:
         if not any(str(m.user_id) == str(current_user.id) for m in members):
             raise CustomException.forbidden(detail="Not a member of this group")
 
-        if len(members) < 2:
+        if not group.is_solo and len(members) < 2:
             raise CustomException.bad_request(detail="At least 2 members are required before a group can accept contributions."
             )
 
