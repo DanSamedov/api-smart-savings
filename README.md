@@ -258,3 +258,14 @@ SmartSave was initially designed as a final-year project by 3 students from the 
 Built with transparency, collaboration, and user privacy at its core; this project is a foundation for modern, ethical financial technology.
 
 **Thank you for checking out SmartSave! 💚**
+
+## License
+
+This project is licensed under a **STRICT PROPRIETARY LICENSE**.
+**Strictly prohibited:**
+
+- Automated scraping or data mining.
+- AI training, fine-tuning, or evaluation using this codebase.
+- Redistribution without explicit written permission.
+
+See the [LICENSE](LICENSE) file for full details.
