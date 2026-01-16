@@ -1,0 +1,21 @@
+PROPRIETARY SOURCE AVAILABLE LICENSE
+
+Copyright (c) 2026 Daniel Adediran, Danylo Samedov, Artem Ruzhevych. All Rights Reserved.
+
+1. PROPRIETARY NATURE
+   This software and associated documentation files (the "Software") are proprietary and confidential. 
+   All rights, title, and interest in and to the Software, including but not limited to intellectual property rights, remain with the Copyright Holders.
+
+2. NO UNAUTHORIZED USE OR REDISTRIBUTION
+   Redistribution and use in source and binary forms, with or without modification, are NOT permitted without specific prior written permission from the Copyright Holders.
+
+3. STRICT PROHIBITION ON SCRAPING AND DATA MINING
+   You are strictly prohibited from using any automated tool, bot, spider, scraper, or other data mining technique to extract, scrape, gather, or index data, code, or content from this Software or its repository.
+
+4. STRICT PROHIBITION ON AI TRAINING
+   You are strictly prohibited from using this Software, its source code, documentation, or any associated data, in whole or in part, to train, fine-tune, validate, or evaluate any Artificial Intelligence (AI) system, Large Language Model (LLM), Machine Learning algorithm, or similar technology. This includes but is not limited to:
+   - Using the code as part of a dataset for code generation models.
+   - Using the architectural patterns or logic for training predictive models.
+
+5. DISCLAIMER
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
