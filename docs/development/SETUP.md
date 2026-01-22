@@ -18,13 +18,13 @@
    cd api-smart-savings
 ```
 
-2. **Install Dependencies**
+1. **Install Dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Configure Environment Variables**
+1. **Configure Environment Variables**
 
 - Copy `.env.example` → `.env` (created by you)
 - Create a PostgreSQL database (e.g., `smartsave`)
@@ -38,16 +38,28 @@ TEST_EMAIL_ACCOUNTS=email1@example.com,email2@example.com
 - These accounts are used by a **startup script** that seeds test data (e.g., test user accounts).
 - Update other values as provided privately by the project manager: ([@heisdanielade](https://github.com/heisdanielade))
 
-4. **Run App Commands**
+1. **Run App Commands**
+
+A docker network is required for the app (Core backend + IMS service) to run. Create it with:
 
 ```bash
-make build      # Start app using Docker
-make down       # Stop app
-make tests      # Run tests
+docker network create smartsave-net
+```
+
+Start the app using Docker:
+
+```bash
+make build
+```
+
+Stop the app using Docker:
+
+```bash
+make down
 ```
 
 More helpful commands are provided in `Makefile` in the project's root directory.
 
-5. **Verification**
+1. **Verification**
    Once the app starts, verify it’s running by visiting:
-   **_http://localhost:3195_**
+   **_<http://localhost:3195>_**
