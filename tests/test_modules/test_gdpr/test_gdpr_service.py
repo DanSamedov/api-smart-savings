@@ -592,13 +592,14 @@ class TestConsentManagement:
             await gdpr_service.revoke_consent(mock_user, consent_id)
 
     @pytest.mark.asyncio
-    async def test_check_consent_active_true(self, gdpr_service, mock_user):
-        """Test check_consent_active returns True when granted."""
+    async def test_check_consent_details_true(self, gdpr_service, mock_user):
+        """Test check_consent_details returns active status and ID when granted."""
         from app.modules.gdpr.models import UserConsentAudit
         from app.modules.shared.enums import ConsentStatus, ConsentType
 
+        consent_id = uuid4()
         existing_consent = UserConsentAudit(
-            id=uuid4(),
+            id=consent_id,
             user_id=mock_user.id,
             consent_type=ConsentType.SAVEBUDDY_AI,
             consent_status=ConsentStatus.GRANTED,
@@ -606,39 +607,43 @@ class TestConsentManagement:
         )
         gdpr_service.gdpr_repo.get_active_consent.return_value = existing_consent
 
-        result = await gdpr_service.check_consent_active(
+        result = await gdpr_service.check_consent_details(
             mock_user.id, ConsentType.SAVEBUDDY_AI
         )
-        assert result is True
+        assert result["is_active"] is True
+        assert result["consent_id"] == consent_id
 
     @pytest.mark.asyncio
-    async def test_check_consent_active_false(self, gdpr_service, mock_user):
-        """Test check_consent_active returns False when no consent."""
+    async def test_check_consent_details_false(self, gdpr_service, mock_user):
+        """Test check_consent_details returns inactive status when no consent."""
         from app.modules.shared.enums import ConsentType
 
         gdpr_service.gdpr_repo.get_active_consent.return_value = None
 
-        result = await gdpr_service.check_consent_active(
+        result = await gdpr_service.check_consent_details(
             mock_user.id, ConsentType.SAVEBUDDY_AI
         )
-        assert result is False
+        assert result["is_active"] is False
+        assert result["consent_id"] is None
 
     @pytest.mark.asyncio
-    async def test_check_consent_active_caching_hit(self, gdpr_service, mock_user):
-        """Test check_consent_active uses cache."""
+    async def test_check_consent_details_caching_hit(self, gdpr_service, mock_user):
+        """Test check_consent_details uses cache."""
         from app.modules.shared.enums import ConsentType
 
         mock_redis = AsyncMock()
+        consent_id = str(uuid4())
 
         with patch(
             "app.modules.gdpr.service.cache_or_get", new_callable=AsyncMock
         ) as mock_cache:
-            mock_cache.return_value = {"active": True}
+            mock_cache.return_value = {"active": True, "id": consent_id}
 
-            result = await gdpr_service.check_consent_active(
+            result = await gdpr_service.check_consent_details(
                 mock_user.id, ConsentType.SAVEBUDDY_AI, redis=mock_redis
             )
 
-            assert result is True
+            assert result["is_active"] is True
+            assert result["consent_id"] == consent_id
             mock_cache.assert_called_once()
             gdpr_service.gdpr_repo.get_active_consent.assert_not_called()

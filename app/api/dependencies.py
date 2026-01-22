@@ -330,10 +330,10 @@ async def require_savebuddy_consent(
     Dependency to ensure user has granted consent for SaveBuddy AI.
     If consent is revoked or missing, raises 403 Forbidden.
     """
-    is_active = await gdpr_service.check_consent_active(
+    consent_data = await gdpr_service.check_consent_details(
         current_user.id, ConsentType.SAVEBUDDY_AI, redis
     )
-    if not is_active:
+    if not consent_data["is_active"]:
         CustomException.e403_forbidden(
             "SaveBuddy AI consent is revoked or not granted. Please grant consent to use this feature."
         )

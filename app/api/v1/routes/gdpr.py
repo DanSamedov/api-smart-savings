@@ -210,12 +210,12 @@ async def check_consent(
             f"Invalid consent type. Possible values: {[e.value for e in ConsentType]}"
         )
 
-    is_active = await gdpr_service.check_consent_active(
+    consent_details = await gdpr_service.check_consent_details(
         current_user.id, type_enum, redis
     )
 
     return standard_response(
         status="success",
         message=f"Consent status for {consent_type} retrieved.",
-        data={"is_active": is_active},
+        data=consent_details,
     )
