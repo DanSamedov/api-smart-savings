@@ -190,7 +190,7 @@ async def revoke_consent(
     status_code=status.HTTP_200_OK,
     response_model=ConsentCheckResponse,
 )
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")
 async def check_consent(
     request: Request,
     consent_type: str,
