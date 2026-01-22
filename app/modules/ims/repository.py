@@ -73,8 +73,15 @@ class IMSRepository:
         limit: int = 50,
     ) -> List[ScheduledTransaction]:
         """Get scheduled transactions for a user, optionally filtered by status."""
-        stmt = select(ScheduledTransaction).where(
-            ScheduledTransaction.user_id == user_id
+        from sqlalchemy.orm import selectinload
+
+        stmt = (
+            select(ScheduledTransaction)
+            .where(ScheduledTransaction.user_id == user_id)
+            .options(
+                selectinload(ScheduledTransaction.goal),
+                selectinload(ScheduledTransaction.group),
+            )
         )
         if status_filter:
             stmt = stmt.where(ScheduledTransaction.status == status_filter)
@@ -121,7 +128,7 @@ class IMSRepository:
             TransactionStatus.PENDING,
             TransactionStatus.ACTIVE,
         ]:
-            tx.status = TransactionStatus.COMPLETED
+            tx.status = TransactionStatus.CANCELLED
             tx.next_run_at = None
             await self.db.commit()
             await self.db.refresh(tx)

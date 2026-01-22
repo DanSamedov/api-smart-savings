@@ -56,6 +56,7 @@ class TransactionStatus(str, Enum):
     PENDING = "PENDING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
     @classmethod
     def sa_enum(cls):

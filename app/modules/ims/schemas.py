@@ -108,6 +108,8 @@ class ScheduledTransactionResponse(BaseModel):
     next_run_at: datetime
     projected_dates: List[datetime]
     created_at: datetime
+    goal_name: Optional[str] = None
+    group_name: Optional[str] = None
     day_of_week: Optional[str] = None
 
     @field_validator("day_of_week", mode="before")
@@ -129,6 +131,8 @@ class ScheduledTransactionItem(BaseModel):
     status: str
     next_run_at: Optional[str]
     created_at: str
+    goal_name: Optional[str] = None
+    group_name: Optional[str] = None
 
 
 class BaseResponse(BaseModel):

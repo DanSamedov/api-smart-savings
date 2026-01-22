@@ -639,6 +639,8 @@ class IMSService:
                         "next_run_at": tx.next_run_at.isoformat()
                         if tx.next_run_at
                         else None,
+                        "goal_name": tx.goal.name if tx.goal else None,
+                        "group_name": tx.group.name if tx.group else None,
                     },
                 )
             )

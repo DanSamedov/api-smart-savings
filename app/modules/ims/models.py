@@ -14,6 +14,7 @@ from app.modules.shared.enums import (Currency, DestinationType,
                                       TransactionFrequency, TransactionStatus)
 
 if TYPE_CHECKING:
+    from app.modules.group.models import Group
     from app.modules.user.models import User
 
 
@@ -80,9 +81,7 @@ class ScheduledTransaction(SQLModel, table=True):
     destination_type: DestinationType = Field(
         sa_column=Column(DestinationType.sa_enum(), nullable=False)
     )
-    goal_id: Optional[uuid.UUID] = Field(
-        default=None
-    )  # FK depends on Goal model existence
+    goal_id: Optional[uuid.UUID] = Field(default=None, foreign_key="groups.id")
     group_id: Optional[uuid.UUID] = Field(default=None, foreign_key="groups.id")
 
     # Execution state
@@ -118,12 +117,26 @@ class ScheduledTransaction(SQLModel, table=True):
 
     # Relationships
     user: "User" = Relationship(back_populates="scheduled_transactions")
+    goal: Optional["Group"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "ScheduledTransaction.goal_id == Group.id",
+            "lazy": "selectin",
+        }
+    )
+    group: Optional["Group"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "ScheduledTransaction.group_id == Group.id",
+            "lazy": "selectin",
+        }
+    )
 
     model_config = ConfigDict(validate_assignment=True)
 
 
+from app.modules.group.models import Group
 from app.modules.user.models import User
 
 IMSAction.model_rebuild()
 ScheduledTransaction.model_rebuild()
 User.model_rebuild()
+Group.model_rebuild()

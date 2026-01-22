@@ -124,6 +124,8 @@ async def confirm_transaction(
             if scheduled_tx.next_run_at
             else [],
             created_at=scheduled_tx.created_at,
+            goal_name=scheduled_tx.goal.name if scheduled_tx.goal else None,
+            group_name=scheduled_tx.group.name if scheduled_tx.group else None,
         )
 
         return standard_response(
@@ -182,6 +184,8 @@ async def get_scheduled_transactions(
                 "status": tx.status.value,
                 "next_run_at": tx.next_run_at.isoformat() if tx.next_run_at else None,
                 "created_at": tx.created_at.isoformat(),
+                "goal_name": tx.goal.name if tx.goal else None,
+                "group_name": tx.group.name if tx.group else None,
             }
             for tx in transactions
         ],
