@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import BackgroundTasks, Request, UploadFile
@@ -450,11 +450,11 @@ class GDPRService:
 
         return result
 
-    async def check_consent_active(
+    async def check_consent_details(
         self, user_id: UUID, consent_type: ConsentType, redis=None
-    ) -> bool:
+    ) -> Dict[str, Any]:
         """
-        Check if user has active consent for a specific feature.
+        Check if user has active consent for a specific feature and return details.
         """
         if redis:
             cache_key = f"user_consent:{user_id}:{consent_type}"
@@ -462,13 +462,19 @@ class GDPRService:
             async def fetch_consent():
                 consent = await self.gdpr_repo.get_active_consent(user_id, consent_type)
                 if not consent:
-                    return {"active": False}
-                return {"active": consent.consent_status == ConsentStatus.GRANTED}
+                    return {"active": False, "id": None}
+                return {
+                    "active": consent.consent_status == ConsentStatus.GRANTED,
+                    "id": str(consent.id),
+                }
 
             data = await cache_or_get(redis, cache_key, fetch_consent, ttl=3600)
-            return data.get("active", False)
+            return {"is_active": data.get("active", False), "consent_id": data.get("id")}
 
         consent = await self.gdpr_repo.get_active_consent(user_id, consent_type)
         if not consent:
-            return False
-        return consent.consent_status == ConsentStatus.GRANTED
+            return {"is_active": False, "consent_id": None}
+        return {
+            "is_active": consent.consent_status == ConsentStatus.GRANTED,
+            "consent_id": consent.id,
+        }

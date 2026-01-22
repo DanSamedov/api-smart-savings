@@ -190,7 +190,7 @@ async def revoke_consent(
     status_code=status.HTTP_200_OK,
     response_model=ConsentCheckResponse,
 )
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")
 async def check_consent(
     request: Request,
     consent_type: str,
@@ -210,12 +210,12 @@ async def check_consent(
             f"Invalid consent type. Possible values: {[e.value for e in ConsentType]}"
         )
 
-    is_active = await gdpr_service.check_consent_active(
+    consent_details = await gdpr_service.check_consent_details(
         current_user.id, type_enum, redis
     )
 
     return standard_response(
         status="success",
         message=f"Consent status for {consent_type} retrieved.",
-        data={"is_active": is_active},
+        data=consent_details,
     )

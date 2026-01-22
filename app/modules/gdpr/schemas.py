@@ -43,6 +43,7 @@ class ConsentActionResponse(GdprBaseResponse):
 
 class ConsentCheckData(BaseModel):
     is_active: bool
+    consent_id: Optional[UUID] = None
 
 
 class ConsentCheckResponse(GdprBaseResponse):
