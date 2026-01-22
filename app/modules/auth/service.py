@@ -283,7 +283,7 @@ class AuthService:
                 background_tasks=background_tasks,
                 notification_type=NotificationType.PASSWORD_RESET_NOTIFICATION,
                 recipients=[user.email],
-                context={"time": transform_time(user.updated_at)},
+                context={"reset_time": transform_time(user.updated_at)},
             )
             logger.info("Password reset successful", extra={"email": mask_email(user.email)})
 
