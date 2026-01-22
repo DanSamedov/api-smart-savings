@@ -68,7 +68,8 @@ async def test_get_financial_analytics_with_transactions(
     mock_user_repo.get_transaction_type_distribution.return_value = {
         "deposit": 30,
         "withdrawal": 10,
-        "group_contribution": 2
+        "group_contribution": 2,
+        "solo_contribution": 5
     }
     
     # Mock group contributions
@@ -96,6 +97,7 @@ async def test_get_financial_analytics_with_transactions(
     assert result["transaction_type_distribution"]["deposit"] == 30
     assert result["transaction_type_distribution"]["withdrawal"] == 10
     assert result["transaction_type_distribution"]["group_contribution"] == 2
+    assert result["transaction_type_distribution"]["solo_contribution"] == 5
     
     # Verify group contribution breakdown
     assert result["group_contribution_share_per_group"]["Travel Squad"] == 50.0
@@ -132,7 +134,8 @@ async def test_get_financial_analytics_no_transactions(
     mock_user_repo.get_transaction_type_distribution.return_value = {
         "deposit": 0,
         "withdrawal": 0,
-        "group_contribution": 0
+        "group_contribution": 0,
+        "solo_contribution": 0
     }
     
     # Mock no group contributions
@@ -156,6 +159,7 @@ async def test_get_financial_analytics_no_transactions(
     assert result["transaction_type_distribution"]["deposit"] == 0
     assert result["transaction_type_distribution"]["withdrawal"] == 0
     assert result["transaction_type_distribution"]["group_contribution"] == 0
+    assert result["transaction_type_distribution"]["solo_contribution"] == 0
     assert result["group_contribution_share_per_group"] == {}
 
 
@@ -176,7 +180,8 @@ async def test_get_financial_analytics_negative_net_flow(
     mock_user_repo.get_transaction_type_distribution.return_value = {
         "deposit": 5,
         "withdrawal": 15,
-        "group_contribution": 0
+        "group_contribution": 0,
+        "solo_contribution": 0
     }
     mock_user_repo.get_total_group_contributions.return_value = 0.0
     mock_user_repo.get_group_contribution_breakdown.return_value = {}
@@ -208,7 +213,8 @@ async def test_get_financial_analytics_only_deposits(
     mock_user_repo.get_transaction_type_distribution.return_value = {
         "deposit": 15,
         "withdrawal": 0,
-        "group_contribution": 0
+        "group_contribution": 0,
+        "solo_contribution": 0
     }
     
     # Mock no group contributions
@@ -247,7 +253,8 @@ async def test_get_financial_analytics_single_group(
     mock_user_repo.get_transaction_type_distribution.return_value = {
         "deposit": 8,
         "withdrawal": 1,
-        "group_contribution": 1
+        "group_contribution": 1,
+        "solo_contribution": 0
     }
     
     # Mock single group contribution

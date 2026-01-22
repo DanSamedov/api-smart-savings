@@ -59,6 +59,7 @@ class TransactionTypeDistribution(BaseModel):
     deposit: int 
     withdrawal: int 
     group_contribution: int 
+    solo_contribution: int 
 
 
 class FinancialAnalyticsData(BaseModel):

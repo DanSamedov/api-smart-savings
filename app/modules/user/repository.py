@@ -184,12 +184,24 @@ class UserRepository:
             )
         )
         group_contrib_result = await self.db.execute(group_contrib_stmt)
+
         group_contrib_count = int(group_contrib_result.scalar() or 0)
+
+        # Count solo contributions (INDIVIDUAL_SAVINGS_DEPOSIT transactions)
+        solo_contrib_stmt = select(func.count(Transaction.id)).where(
+            and_(
+                Transaction.owner_id == user_id,
+                Transaction.type == TransactionType.INDIVIDUAL_SAVINGS_DEPOSIT
+            )
+        )
+        solo_contrib_result = await self.db.execute(solo_contrib_stmt)
+        solo_contrib_count = int(solo_contrib_result.scalar() or 0)
         
         return {
             "deposit": deposit_count,
             "withdrawal": withdrawal_count,
-            "group_contribution": group_contrib_count
+            "group_contribution": group_contrib_count,
+            "solo_contribution": solo_contrib_count
         }
 
     async def get_total_group_contributions(self, user_id: UUID) -> float:
@@ -205,7 +217,7 @@ class UserRepository:
         from app.modules.group.models import GroupMember, Group
         
         stmt = select(func.coalesce(func.sum(GroupMember.contributed_amount), 0)).join(Group, GroupMember.group_id == Group.id).where(
-            GroupMember.user_id == user_id and Group.is_solo == False
+            and_(GroupMember.user_id == user_id, Group.is_solo == False)
         )
         result = await self.db.execute(stmt)
         return float(result.scalar() or 0)
@@ -227,7 +239,7 @@ class UserRepository:
         stmt = (
             select(Group.name, GroupMember.contributed_amount)
             .join(Group, GroupMember.group_id == Group.id)
-            .where(GroupMember.user_id == user_id and Group.is_solo == False)
+            .where(and_(GroupMember.user_id == user_id, Group.is_solo == False))
         )
         result = await self.db.execute(stmt)
         rows = result.all()
@@ -246,6 +258,6 @@ class UserRepository:
         """
         from app.modules.group.models import GroupMember, Group
         
-        stmt = select(func.count(GroupMember.id)).join(Group, GroupMember.group_id == Group.id).where(GroupMember.user_id == user_id and Group.is_solo == False)
+        stmt = select(func.count(GroupMember.id)).join(Group, GroupMember.group_id == Group.id).where(and_(GroupMember.user_id == user_id, Group.is_solo == False))
         result = await self.db.execute(stmt)
         return int(result.scalar() or 0)
