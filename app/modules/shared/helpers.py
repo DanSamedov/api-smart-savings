@@ -10,10 +10,10 @@ import httpx
 def validate_password_strength(password: str):
     """
     Validate password meets security requirements.
-    
+
     Raises:
         ValueError: If password doesn't meet requirements
-    """ 
+    """
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters long")
     if not any(c.isupper() for c in password):

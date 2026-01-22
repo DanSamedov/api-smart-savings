@@ -1,7 +1,7 @@
 # app/core/security/jwt.py
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
@@ -17,23 +17,23 @@ EXPIRY = settings.JWT_EXPIRATION_TIME
 def decode_token(token: str, expected_version: Optional[int] = None) -> dict[str, Any]:
     """
     Decode and validate JWT token, optionally checking token version.
-    
+
     Args:
         token: The JWT token to decode
         expected_version: Optional token version to validate against
-        
+
     Returns:
         dict: The decoded token payload
-        
+
     Raises:
         HTTPException: If token is invalid, expired, or version mismatch
     """
     try:
         payload = jwt.decode(token, KEY, algorithms=[ALGORITHM])
-        
+
         # Verify token version if requested
         if expected_version is not None:
-            token_version = payload.get('ver')
+            token_version = payload.get("ver")
             if token_version is None or token_version != expected_version:
                 CustomException.e401_unauthorized("Token version mismatch.")
         return payload
@@ -55,18 +55,15 @@ def create_password_reset_token(email: str) -> str:
 def create_access_token(data: dict[str, Union[str, int]], token_version: int):
     """
     Create login access token with version support.
-    
+
     Args:
         data: Base token payload
         token_version: User's current token version
-        
+
     Returns:
         str: Encoded JWT token
     """
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(seconds=EXPIRY)
-    to_encode.update({
-        "exp": expire,
-        "ver": token_version
-    })
+    to_encode.update({"exp": expire, "ver": token_version})
     return jwt.encode(to_encode, KEY, algorithm=ALGORITHM)

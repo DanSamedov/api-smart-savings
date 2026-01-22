@@ -1,29 +1,40 @@
 # app/modules/gdpr/service.py
 
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Optional, Dict
-from datetime import datetime, timezone, timedelta
-from uuid import UUID
 from io import BytesIO
+from typing import Dict, Optional
+from uuid import UUID
 
-from fastapi import Request, BackgroundTasks, UploadFile
+from fastapi import BackgroundTasks, Request, UploadFile
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
 from app.core.security.hashing import hash_ip
+from app.core.utils.cache import cache_or_get, invalidate_cache
 from app.core.utils.exceptions import CustomException
 from app.core.utils.helpers import get_client_ip
-from app.modules.shared.helpers import generate_secure_code, transform_time
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
-from app.modules.user.models import User
-from app.modules.shared.enums import NotificationType, GDPRRequestType, GDPRRequestStatus, ConsentType, ConsentStatus
-from app.modules.gdpr.models import GDPRRequest, UserConsentAudit
 from app.modules.gdpr.helpers import create_gdpr_pdf
+from app.modules.gdpr.models import GDPRRequest, UserConsentAudit
 from app.modules.gdpr.schemas import ConsentCreate
+from app.modules.shared.enums import (ConsentStatus, ConsentType,
+                                      GDPRRequestStatus, GDPRRequestType,
+                                      NotificationType)
+from app.modules.shared.helpers import generate_secure_code, transform_time
+from app.modules.user.models import User
 
 
 class GDPRService:
-    def __init__(self, user_repo, wallet_repo, gdpr_repo, transaction_repo, notification_manager, ims_repo):
+    def __init__(
+        self,
+        user_repo,
+        wallet_repo,
+        gdpr_repo,
+        transaction_repo,
+        notification_manager,
+        ims_repo,
+    ):
         self.user_repo = user_repo
         self.wallet_repo = wallet_repo
         self.gdpr_repo = gdpr_repo
@@ -46,7 +57,9 @@ class GDPRService:
         balance = Decimal(wallet.total_balance or 0)
         threshold = Decimal(settings.MIN_BALANCE_THRESHOLD or 0)
         if balance >= threshold:
-            raise CustomException.e400_bad_request("Please withdraw the remaining funds in your wallet before requesting account deletion.")
+            raise CustomException.e400_bad_request(
+                "Please withdraw the remaining funds in your wallet before requesting account deletion."
+            )
 
         if (
             current_user.verification_code
@@ -60,13 +73,10 @@ class GDPRService:
         code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
         updates = {
-                "verification_code": code,
-                "verification_code_expires_at": expires_at,
-            }
-        await self.user_repo.update(
-            current_user,
-            updates
-        )
+            "verification_code": code,
+            "verification_code_expires_at": expires_at,
+        }
+        await self.user_repo.update(current_user, updates)
 
         # Send deletion verification email
         await self.notification_manager.schedule(
@@ -101,7 +111,9 @@ class GDPRService:
         )
 
         if current_user.is_deleted:
-            raise CustomException.e409_conflict("Account is already scheduled for deletion.")
+            raise CustomException.e409_conflict(
+                "Account is already scheduled for deletion."
+            )
 
         ver_code = deletion_request.verification_code
         expires_at = current_user.verification_code_expires_at
@@ -114,7 +126,9 @@ class GDPRService:
             or not current_user.verification_code_expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
-            raise CustomException.e400_bad_request("Invalid or expired verification code.")
+            raise CustomException.e400_bad_request(
+                "Invalid or expired verification code."
+            )
 
         updates = {
             "is_deleted": True,
@@ -146,7 +160,7 @@ class GDPRService:
 
         logger.info(
             msg="GDPR Data Request",
-            extra={ 
+            extra={
                 "method": "POST",
                 "path": "/v1/user/gdpr-request",
                 "status_code": 202,
@@ -199,12 +213,16 @@ class GDPRService:
             pdf_bytes = await create_gdpr_pdf(data_summary, password)
 
             # Send email with PDF attachment
-            await self.send_gdpr_pdf_email(user.email, user.full_name, pdf_bytes, password)
+            await self.send_gdpr_pdf_email(
+                user.email, user.full_name, pdf_bytes, password
+            )
 
             logger.info(f"GDPR data export completed for user {user_id}")
 
         except Exception as e:
-            logger.exception(f"Failed to process GDPR export for user {user_id}: {str(e)}")
+            logger.exception(
+                f"Failed to process GDPR export for user {user_id}: {str(e)}"
+            )
             # Update request status to refused on error
             try:
                 gdpr_request = await self.gdpr_repo.get_by_id(gdpr_request_id)
@@ -248,20 +266,38 @@ class GDPRService:
                 "is_verified": user.is_verified,
                 "is_enabled": user.is_enabled,
                 "is_deleted": user.is_deleted,
-                "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if user.created_at else "N/A",
-                "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC") if user.updated_at else "N/A",
+                "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                if user.created_at
+                else "N/A",
+                "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                if user.updated_at
+                else "N/A",
             },
             "authentication_data": {
-                "last_login_at": user.last_login_at.strftime("%Y-%m-%d %H:%M:%S UTC") if user.last_login_at else "Never",
+                "last_login_at": user.last_login_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                if user.last_login_at
+                else "Never",
                 "failed_login_attempts": user.failed_login_attempts,
-                "last_failed_login_at": user.last_failed_login_at.strftime("%Y-%m-%d %H:%M:%S UTC") if user.last_failed_login_at else "N/A"
+                "last_failed_login_at": user.last_failed_login_at.strftime(
+                    "%Y-%m-%d %H:%M:%S UTC"
+                )
+                if user.last_failed_login_at
+                else "N/A",
             },
             "wallet_information": {
                 "wallet_id": str(wallet.id) if wallet else "N/A",
-                "total_balance": f"{float(wallet.total_balance):.2f}" if wallet else "0.00",
-                "locked_amount": f"{float(wallet.locked_amount):.2f}" if wallet else "0.00",
-                "available_balance": f"{wallet.available_balance:.2f}" if wallet else "0.00",
-                "created_at": wallet.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if wallet and wallet.created_at else "N/A",
+                "total_balance": f"{float(wallet.total_balance):.2f}"
+                if wallet
+                else "0.00",
+                "locked_amount": f"{float(wallet.locked_amount):.2f}"
+                if wallet
+                else "0.00",
+                "available_balance": f"{wallet.available_balance:.2f}"
+                if wallet
+                else "0.00",
+                "created_at": wallet.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                if wallet and wallet.created_at
+                else "N/A",
             },
             "transactions": [
                 {
@@ -270,17 +306,25 @@ class GDPRService:
                     "amount": f"{float(t.amount):.2f}",
                     "status": t.status.value,
                     "description": t.description or "N/A",
-                    "created_at": t.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if t.created_at else "N/A",
-                    "executed_at": t.executed_at.strftime("%Y-%m-%d %H:%M:%S UTC") if t.executed_at else "N/A",
+                    "created_at": t.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    if t.created_at
+                    else "N/A",
+                    "executed_at": t.executed_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    if t.executed_at
+                    else "N/A",
                 }
                 for t in transactions
             ],
             "gdpr_requests": [
                 {
                     "request_id": str(req.id),
-                    "request_type": req.request_type.value if req.request_type else "N/A",
+                    "request_type": req.request_type.value
+                    if req.request_type
+                    else "N/A",
                     "status": req.status.value,
-                    "created_at": req.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if req.created_at else "N/A",
+                    "created_at": req.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    if req.created_at
+                    else "N/A",
                     "refusal_reason": req.refusal_reason or "N/A",
                 }
                 for req in gdpr_requests
@@ -290,12 +334,16 @@ class GDPRService:
                     "action_id": str(action.id),
                     "user_prompt": action.user_prompt,
                     "intent": action.intent,
-                    "created_at": action.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if action.created_at else "N/A",
+                    "created_at": action.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    if action.created_at
+                    else "N/A",
                 }
                 for action in ims_actions
             ],
             "export_metadata": {
-                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                "generated_at": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M:%S UTC"
+                )
             },
         }
 
@@ -310,11 +358,11 @@ class GDPRService:
         # Create UploadFile from bytes (keeps PDF in memory)
         app_name = settings.APP_NAME
         filename = f"{app_name}_user_data_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pdf"
-        
+
         pdf_file = UploadFile(
             file=BytesIO(pdf_bytes),
             filename=filename,
-            headers={"content-type": "application/pdf"}
+            headers={"content-type": "application/pdf"},
         )
 
         # Prepare context
@@ -336,21 +384,24 @@ class GDPRService:
         self,
         request: Request,
         current_user: User,
-        consent_data: ConsentCreate
+        consent_data: ConsentCreate,
+        redis=None,
     ) -> UserConsentAudit:
         """
         Add a new consent record for the user.
         """
         # Check if active consent already exists
-        active = await self.gdpr_repo.get_active_consent(current_user.id, consent_data.consent_type)
+        active = await self.gdpr_repo.get_active_consent(
+            current_user.id, consent_data.consent_type
+        )
         if active:
             # If already granted and simpler version check logic could be here.
             # For now, we allow re-granting which creates a new record or updates?
             # Audit log typically implies new record.
-             pass
+            pass
 
         raw_ip = get_client_ip(request)
-        ip = hash_ip(raw_ip) # Anonymize IP
+        ip = hash_ip(raw_ip)  # Anonymize IP
         user_agent = request.headers.get("user-agent", "unknown")
 
         consent = UserConsentAudit(
@@ -359,15 +410,20 @@ class GDPRService:
             consent_status=ConsentStatus.GRANTED,
             version=consent_data.version,
             source_ip=ip,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
-        
-        return await self.gdpr_repo.create_consent(consent)
+
+        result = await self.gdpr_repo.create_consent(consent)
+
+        # Invalidate cache if redis is provided
+        if redis:
+            cache_key = f"user_consent:{current_user.id}:{consent_data.consent_type}"
+            await invalidate_cache(redis, cache_key)
+
+        return result
 
     async def revoke_consent(
-        self,
-        current_user: User,
-        consent_id: UUID
+        self, current_user: User, consent_id: UUID, redis=None
     ) -> UserConsentAudit:
         """
         Revoke an existing consent.
@@ -375,24 +431,44 @@ class GDPRService:
         consent = await self.gdpr_repo.get_consent_by_id(consent_id)
         if not consent:
             raise CustomException.e404_not_found("Consent record not found.")
-            
+
         if consent.user_id != current_user.id:
-             raise CustomException.e403_forbidden("You do not own this consent record.")
-             
+            raise CustomException.e403_forbidden("You do not own this consent record.")
+
         if consent.consent_status == ConsentStatus.REVOKED:
             raise CustomException.e400_bad_request("Consent already revoked.")
-            
+
         consent.consent_status = ConsentStatus.REVOKED
         consent.revoked_at = datetime.now(timezone.utc)
-        
-        return await self.gdpr_repo.update_consent(consent)
 
-    async def check_consent_active(self, user_id: UUID, consent_type: ConsentType) -> bool:
+        result = await self.gdpr_repo.update_consent(consent)
+
+        # Invalidate cache if redis is provided
+        if redis:
+            cache_key = f"user_consent:{current_user.id}:{consent.consent_type}"
+            await invalidate_cache(redis, cache_key)
+
+        return result
+
+    async def check_consent_active(
+        self, user_id: UUID, consent_type: ConsentType, redis=None
+    ) -> bool:
         """
         Check if user has active consent for a specific feature.
         """
+        if redis:
+            cache_key = f"user_consent:{user_id}:{consent_type}"
+
+            async def fetch_consent():
+                consent = await self.gdpr_repo.get_active_consent(user_id, consent_type)
+                if not consent:
+                    return {"active": False}
+                return {"active": consent.consent_status == ConsentStatus.GRANTED}
+
+            data = await cache_or_get(redis, cache_key, fetch_consent, ttl=3600)
+            return data.get("active", False)
+
         consent = await self.gdpr_repo.get_active_consent(user_id, consent_type)
         if not consent:
             return False
         return consent.consent_status == ConsentStatus.GRANTED
-

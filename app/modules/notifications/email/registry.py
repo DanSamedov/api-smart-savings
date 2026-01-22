@@ -1,17 +1,15 @@
 # app/modules/notifications/email/registry.py
 
-from app.modules.notifications.schemas import (
-    VerificationEmailContext, 
-    BaseEmailContext,
-    LoginNotificationContext, 
-    PasswordResetContext, 
-    WalletTransactionContext,
-    GDPRDataExportContext,
-    GroupContributionContext,
-    GroupWithdrawalContext,
-    GroupMemberContext,
-    GroupMilestoneContext,
-)
+from app.modules.notifications.schemas import (BaseEmailContext,
+                                               GDPRDataExportContext,
+                                               GroupContributionContext,
+                                               GroupMemberContext,
+                                               GroupMilestoneContext,
+                                               GroupWithdrawalContext,
+                                               LoginNotificationContext,
+                                               PasswordResetContext,
+                                               VerificationEmailContext,
+                                               WalletTransactionContext)
 from app.modules.shared.enums import NotificationType
 
 EMAIL_TEMPLATES = {

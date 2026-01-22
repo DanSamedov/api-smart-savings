@@ -1,8 +1,8 @@
 # app/modules/ims/repository.py
 
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -13,10 +13,10 @@ from app.modules.shared.enums import TransactionStatus
 
 class IMSRepository:
     """Repository for IMS-related database operations."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
     # ========================
     # IMS Action Operations
     # ========================
@@ -26,14 +26,16 @@ class IMSRepository:
         await self.db.commit()
         await self.db.refresh(action)
         return action
-    
+
     async def get_action_by_id(self, action_id: UUID) -> Optional[IMSAction]:
         """Get an IMS action by ID."""
         stmt = select(IMSAction).where(IMSAction.id == action_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
-    async def get_actions_by_user(self, user_id: UUID, limit: int = 50) -> List[IMSAction]:
+
+    async def get_actions_by_user(
+        self, user_id: UUID, limit: int = 50
+    ) -> List[IMSAction]:
         """Get all IMS actions for a user."""
         stmt = (
             select(IMSAction)
@@ -43,7 +45,7 @@ class IMSRepository:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
-    
+
     # ========================
     # Scheduled Transaction Operations
     # ========================
@@ -55,7 +57,7 @@ class IMSRepository:
         await self.db.commit()
         await self.db.refresh(transaction)
         return transaction
-    
+
     async def get_scheduled_transaction_by_id(
         self, tx_id: UUID
     ) -> Optional[ScheduledTransaction]:
@@ -63,34 +65,33 @@ class IMSRepository:
         stmt = select(ScheduledTransaction).where(ScheduledTransaction.id == tx_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_scheduled_transactions_by_user(
-        self, 
-        user_id: UUID, 
+        self,
+        user_id: UUID,
         status_filter: Optional[TransactionStatus] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[ScheduledTransaction]:
         """Get scheduled transactions for a user, optionally filtered by status."""
-        stmt = (
-            select(ScheduledTransaction)
-            .where(ScheduledTransaction.user_id == user_id)
+        stmt = select(ScheduledTransaction).where(
+            ScheduledTransaction.user_id == user_id
         )
         if status_filter:
             stmt = stmt.where(ScheduledTransaction.status == status_filter)
         stmt = stmt.order_by(ScheduledTransaction.created_at.desc()).limit(limit)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_active_due_transactions(self) -> List[ScheduledTransaction]:
         """Get all active transactions that are due for execution (next_run_at <= now)."""
         now = datetime.now(timezone.utc)
         stmt = select(ScheduledTransaction).where(
             ScheduledTransaction.status == TransactionStatus.ACTIVE,
-            ScheduledTransaction.next_run_at <= now
+            ScheduledTransaction.next_run_at <= now,
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def update_scheduled_transaction(
         self, transaction: ScheduledTransaction
     ) -> ScheduledTransaction:
@@ -99,7 +100,7 @@ class IMSRepository:
         await self.db.commit()
         await self.db.refresh(transaction)
         return transaction
-    
+
     async def activate_scheduled_transaction(
         self, tx_id: UUID
     ) -> Optional[ScheduledTransaction]:
@@ -110,7 +111,7 @@ class IMSRepository:
             await self.db.commit()
             await self.db.refresh(tx)
         return tx
-    
+
     async def cancel_scheduled_transaction(
         self, tx_id: UUID
     ) -> Optional[ScheduledTransaction]:

@@ -2,37 +2,24 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
-from fastapi import Request, BackgroundTasks
+
+from fastapi import BackgroundTasks, Request
 
 from app.core.config import settings
 from app.core.middleware.logging import logger
-from app.core.security.jwt import (
-    create_access_token,
-    create_password_reset_token,
-    decode_token,
-)
 from app.core.security.hashing import hash_ip, hash_password, verify_password
+from app.core.security.jwt import (create_access_token,
+                                   create_password_reset_token, decode_token)
+from app.core.utils.exceptions import CustomException
+from app.core.utils.helpers import get_client_ip, mask_email
+from app.modules.auth.schemas import (EmailOnlyRequest, LoginRequest,
+                                      RegisterRequest, ResetPasswordRequest,
+                                      VerifyEmailRequest)
+from app.modules.shared.enums import NotificationType
+from app.modules.shared.helpers import (generate_secure_code,
+                                        get_location_from_ip, transform_time)
 from app.modules.user.models import User
 from app.modules.wallet.models import Wallet
-from app.modules.auth.schemas import (
-    EmailOnlyRequest,
-    LoginRequest,
-    RegisterRequest,
-    ResetPasswordRequest,
-    VerifyEmailRequest,
-)
-from app.modules.shared.enums import NotificationType
-from app.core.utils.helpers import (
-    mask_email,
-    get_client_ip,
-)
-from app.modules.shared.helpers import (
-    generate_secure_code,
-    transform_time,
-    get_location_from_ip
-)
-from app.core.utils.exceptions import CustomException
-
 
 
 class AuthService:
@@ -81,7 +68,9 @@ class AuthService:
         verify_email_request: VerifyEmailRequest,
         background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
-        user = await self.user_repo.get_by_email_or_none(str(verify_email_request.email))
+        user = await self.user_repo.get_by_email_or_none(
+            str(verify_email_request.email)
+        )
         if not user:
             raise CustomException.e404_not_found("Account does not exist.")
         if user.is_verified:
@@ -96,18 +85,21 @@ class AuthService:
             or not expires_at
             or expires_at < datetime.now(timezone.utc)
         ):
-            raise CustomException.e400_bad_request("Verification code is invalid or expired.")
+            raise CustomException.e400_bad_request(
+                "Verification code is invalid or expired."
+            )
 
-        updates = {"is_verified": True, "verification_code": None, "verification_code_expires_at": None}
-        await self.user_repo.update(
-            user,
-            updates
-        )
+        updates = {
+            "is_verified": True,
+            "verification_code": None,
+            "verification_code_expires_at": None,
+        }
+        await self.user_repo.update(user, updates)
         # Check if wallet exists (distinguishes new user vs email change)
         existing_wallet = await self.wallet_repo.get_wallet_by_user_id(user.id)
-        
+
         if not existing_wallet:
-            wallet = Wallet(user_id=user.id) 
+            wallet = Wallet(user_id=user.id)
             await self.wallet_repo.create(wallet)
 
             await self.notification_manager.schedule(
@@ -131,11 +123,11 @@ class AuthService:
         verification_code = generate_secure_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-        updates = {"verification_code": verification_code, "verification_code_expires_at": expires_at}
-        await self.user_repo.update(
-            user,
-            updates
-        )
+        updates = {
+            "verification_code": verification_code,
+            "verification_code_expires_at": expires_at,
+        }
+        await self.user_repo.update(user, updates)
 
         await self.notification_manager.schedule(
             self.notification_manager.send,
@@ -157,21 +149,32 @@ class AuthService:
         if not user:
             raise CustomException.e401_unauthorized("Invalid credentials.")
 
-        if not verify_password(login_request.password.get_secret_value(), user.password_hash):
+        if not verify_password(
+            login_request.password.get_secret_value(), user.password_hash
+        ):
             await self._handle_failed_login(user, raw_ip, hashed_ip, background_tasks)
 
-        if not user.is_enabled and user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS:
+        if (
+            not user.is_enabled
+            and user.failed_login_attempts < settings.MAX_FAILED_LOGIN_ATTEMPTS
+        ):
             await self._handle_disabled_account(user, background_tasks)
 
         if not user.is_verified:
-            raise CustomException.e403_forbidden("Account not verified. Check your email.")
+            raise CustomException.e403_forbidden(
+                "Account not verified. Check your email."
+            )
 
         if user.is_deleted:
             user.is_deleted = False
             user.deleted_at = None
 
-        expire = datetime.now(timezone.utc) + timedelta(seconds=settings.JWT_EXPIRATION_TIME)
-        access_token = create_access_token(data={"sub": user.email}, token_version=user.token_version)
+        expire = datetime.now(timezone.utc) + timedelta(
+            seconds=settings.JWT_EXPIRATION_TIME
+        )
+        access_token = create_access_token(
+            data={"sub": user.email}, token_version=user.token_version
+        )
 
         updates = {
             "last_login_at": datetime.now(timezone.utc),
@@ -187,13 +190,25 @@ class AuthService:
             background_tasks=background_tasks,
             notification_type=NotificationType.LOGIN_NOTIFICATION,
             recipients=[user.email],
-            context={"ip": raw_ip, "location": location, "time": transform_time(user.last_login_at)},
+            context={
+                "ip": raw_ip,
+                "location": location,
+                "time": transform_time(user.last_login_at),
+            },
         )
 
-        return {"access_token": access_token, "token_type": "bearer", "expires_at": expire.isoformat()}
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_at": expire.isoformat(),
+        }
 
     async def _handle_failed_login(
-        self, user: User, raw_ip: str, hashed_ip: str, background_tasks: Optional[BackgroundTasks]
+        self,
+        user: User,
+        raw_ip: str,
+        hashed_ip: str,
+        background_tasks: Optional[BackgroundTasks],
     ) -> None:
         now = datetime.now(timezone.utc)
         user.failed_login_attempts += 1
@@ -221,7 +236,11 @@ class AuthService:
             await self.notification_manager.send(
                 notification_type=NotificationType.ACCOUNT_LOCKED,
                 recipients=[user.email],
-                context={"ip": raw_ip, "location": location, "time": transform_time(now)},
+                context={
+                    "ip": raw_ip,
+                    "location": location,
+                    "time": transform_time(now),
+                },
             )
 
             raise CustomException.e403_forbidden(
@@ -238,15 +257,22 @@ class AuthService:
             notification_type=NotificationType.ACCOUNT_DISABLED,
             recipients=[user.email],
         )
-        raise CustomException.e403_forbidden("Your account is disabled. Check your email.")
+        raise CustomException.e403_forbidden(
+            "Your account is disabled. Check your email."
+        )
 
     async def request_password_reset(
-        self, email_only_req: EmailOnlyRequest, background_tasks: Optional[BackgroundTasks] = None
+        self,
+        email_only_req: EmailOnlyRequest,
+        background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         email = str(email_only_req.email).lower().strip()
         user = await self.user_repo.get_by_email_or_none(email)
         if not user:
-            logger.warning("Password reset requested for non-existent email", extra={"email": mask_email(email)})
+            logger.warning(
+                "Password reset requested for non-existent email",
+                extra={"email": mask_email(email)},
+            )
             return
 
         reset_token = create_password_reset_token(email)
@@ -259,7 +285,9 @@ class AuthService:
         )
 
     async def reset_password(
-        self, reset_request: ResetPasswordRequest, background_tasks: Optional[BackgroundTasks] = None
+        self,
+        reset_request: ResetPasswordRequest,
+        background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         try:
             token_data = decode_token(reset_request.reset_token)
@@ -271,7 +299,9 @@ class AuthService:
                 raise CustomException.e404_not_found("Account not found.")
 
             updates = {
-                "password_hash": hash_password(reset_request.new_password.get_secret_value()),
+                "password_hash": hash_password(
+                    reset_request.new_password.get_secret_value()
+                ),
                 "failed_login_attempts": 0,
                 "updated_at": datetime.now(timezone.utc),
                 "is_enabled": True,
@@ -285,7 +315,9 @@ class AuthService:
                 recipients=[user.email],
                 context={"reset_time": transform_time(user.updated_at)},
             )
-            logger.info("Password reset successful", extra={"email": mask_email(user.email)})
+            logger.info(
+                "Password reset successful", extra={"email": mask_email(user.email)}
+            )
 
         except Exception as e:
             logger.error(f"Password reset failed: {str(e)}")

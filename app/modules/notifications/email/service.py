@@ -1,16 +1,18 @@
 # app/modules/notifications/email/service.py
-from typing import Optional, Dict, List
 from datetime import datetime, timezone
+from typing import Dict, List, Optional
+
 from fastapi import UploadFile
 from jinja2 import Template
 from pydantic import ValidationError
 
 from app.core.config import TEMPLATES_DIR
 from app.core.middleware.logging import logger
-from app.core.utils.helpers import mask_email, mask_data
-from app.modules.notifications.email.registry import EMAIL_TEMPLATES
+from app.core.utils.helpers import mask_data, mask_email
 from app.modules.notifications.email.providers import EmailProviderFactory
-from app.modules.notifications.schemas import frontend_url, app_name, BaseEmailContext
+from app.modules.notifications.email.registry import EMAIL_TEMPLATES
+from app.modules.notifications.schemas import (BaseEmailContext, app_name,
+                                               frontend_url)
 from app.modules.notifications.service import NotificationService
 from app.modules.shared.enums import NotificationType
 
@@ -26,27 +28,46 @@ class EmailNotificationService(NotificationService):
         template_str = template_path.read_text()
         return Template(template_str).render(context)
 
-    async def _send_email(self, recipients: List[str], subject: str, template_path: str, context: Dict,
-                          attachments: Optional[List[UploadFile]] = None):
+    async def _send_email(
+        self,
+        recipients: List[str],
+        subject: str,
+        template_path: str,
+        context: Dict,
+        attachments: Optional[List[UploadFile]] = None,
+    ):
         try:
             html_content = await self._render_template(template_path, context)
-            await self.provider.send_email(recipients, subject, html_content, attachments)
+            await self.provider.send_email(
+                recipients, subject, html_content, attachments
+            )
 
         except Exception as e:
-            logger.error(f"Failed to send email '{mask_data(subject)}' to {mask_email(recipients[0])}. Check provider logs for details.")
+            logger.error(
+                f"Failed to send email '{mask_data(subject)}' to {mask_email(recipients[0])}. Check provider logs for details."
+            )
 
-    def _enrich_context(self, notification_type: NotificationType, context: Dict) -> Dict:
+    def _enrich_context(
+        self, notification_type: NotificationType, context: Dict
+    ) -> Dict:
         """Autofill missing or computed context values."""
         enriched = {**context}
 
         # Reset link generator
-        if notification_type == NotificationType.PASSWORD_RESET and "reset_token" in enriched:
+        if (
+            notification_type == NotificationType.PASSWORD_RESET
+            and "reset_token" in enriched
+        ):
             enriched.setdefault(
-                "reset_link", f"{frontend_url}/u/reset-password?token={enriched['reset_token']}"
+                "reset_link",
+                f"{frontend_url}/u/reset-password?token={enriched['reset_token']}",
             )
 
         # Verification link generator
-        if notification_type in (NotificationType.VERIFICATION, NotificationType.ACCOUNT_DELETION_REQUEST):
+        if notification_type in (
+            NotificationType.VERIFICATION,
+            NotificationType.ACCOUNT_DELETION_REQUEST,
+        ):
             code = enriched.get("verification_code")
             if code:
                 enriched.setdefault(
@@ -55,12 +76,19 @@ class EmailNotificationService(NotificationService):
 
         # Always provide global defaults
         enriched.setdefault("app_name", app_name)
-        enriched.setdefault("time", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"))
+        enriched.setdefault(
+            "time", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        )
 
         return enriched
 
-    async def send(self, notification_type: NotificationType, recipients: List[str], context: Optional[Dict] = None,
-                   attachments: Optional[List[UploadFile]] = None):
+    async def send(
+        self,
+        notification_type: NotificationType,
+        recipients: List[str],
+        context: Optional[Dict] = None,
+        attachments: Optional[List[UploadFile]] = None,
+    ):
         context = context or {}
 
         if notification_type not in EMAIL_TEMPLATES:

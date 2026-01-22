@@ -2,30 +2,39 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Request, BackgroundTasks, status, Depends, HTTPException
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException,
+                     Request, status)
 from redis.asyncio import Redis
 
-from app.api.dependencies import get_current_user, get_gdpr_service, get_redis, get_user_repo
+from app.api.dependencies import (get_current_user, get_gdpr_service,
+                                  get_redis, get_user_repo)
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.exceptions import CustomException
 from app.core.utils.response import standard_response
 from app.modules.auth.schemas import VerificationCodeOnlyRequest
+from app.modules.gdpr.schemas import (ConsentActionResponse,
+                                      ConsentCheckResponse, ConsentCreate,
+                                      ConsentResponse, GdprSimpleResponse)
 from app.modules.gdpr.service import GDPRService
-from app.modules.gdpr.schemas import ConsentCreate, ConsentResponse
 from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
 
 router = APIRouter()
 
 
-@router.post("/request-account-deletion", status_code=status.HTTP_200_OK)
+@router.post(
+    "/request-account-deletion",
+    status_code=status.HTTP_200_OK,
+    response_model=GdprSimpleResponse,
+)
 @limiter.limit("2/hour")
 async def request_account_deletion(
-        request: Request,
-        background_tasks: BackgroundTasks,
-        current_user: User = Depends(get_current_user),
-        user_repo: UserRepository = Depends(get_user_repo),
-        gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repo),
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
+) -> dict[str, Any]:
     """
     Request a verification code for account deletion.
 
@@ -37,24 +46,29 @@ async def request_account_deletion(
     if not user:
         raise CustomException.e404_not_found("User not found.")
 
-    await gdpr_service.request_delete_account(current_user=user, background_tasks=background_tasks)
+    await gdpr_service.request_delete_account(
+        current_user=user, background_tasks=background_tasks
+    )
 
     return standard_response(
         status="success",
-        message="Verification code sent to email, verify process to schedule account deletion."
+        message="Verification code sent to email, verify process to schedule account deletion.",
     )
 
 
-
-@router.post("/schedule-account-deletion", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/schedule-account-deletion",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=GdprSimpleResponse,
+)
 @limiter.limit("2/hour")
 async def schedule_account_deletion(
-        request: Request,
-        background_tasks: BackgroundTasks,
-        deletion_request: VerificationCodeOnlyRequest,
-        current_user: User = Depends(get_current_user),
-        user_repo: UserRepository = Depends(get_user_repo),
-        gdpr_service: GDPRService = Depends(get_gdpr_service)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    deletion_request: VerificationCodeOnlyRequest,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repo),
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
 ) -> dict[str, Any]:
     """
     Verify the account deletion code and schedule the user's account for deletion.
@@ -74,74 +88,134 @@ async def schedule_account_deletion(
     if not user:
         raise CustomException.e404_not_found("User not found.")
 
-    await gdpr_service.schedule_account_delete(request=request, current_user=user,
-                                               deletion_request=deletion_request, background_tasks=background_tasks)
+    await gdpr_service.schedule_account_delete(
+        request=request,
+        current_user=user,
+        deletion_request=deletion_request,
+        background_tasks=background_tasks,
+    )
 
     return standard_response(
         status="success",
-        message="Your Account will be deleted in 14 days. You can login to cancel deletion."
+        message="Your Account will be deleted in 14 days. You can login to cancel deletion.",
     )
 
 
-@router.post("/request-data-export", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/request-data-export",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=GdprSimpleResponse,
+)
 @limiter.limit("1/hour")
-async def request_data_export(request: Request, background_tasks: BackgroundTasks,
-                                 current_user: User = Depends(get_current_user),
-                                 user_repo: UserRepository = Depends(get_user_repo),
-                                 gdpr_service: GDPRService = Depends(get_gdpr_service)) -> dict[str, Any]:
+async def request_data_export(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repo),
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
+) -> dict[str, Any]:
     user = await user_repo.get_by_id(current_user.id)
     if not user:
         raise CustomException.e404_not_found("User not found.")
 
-    await gdpr_service.request_export_of_data(request=request, current_user=current_user, background_tasks=background_tasks)
+    await gdpr_service.request_export_of_data(
+        request=request, current_user=current_user, background_tasks=background_tasks
+    )
 
     return standard_response(
         status="success",
-        message="Your data request according to GDPR has been received and is now being processed. You’ll receive your it via email within 24 hours."
+        message="Your data request according to GDPR has been received and is now being processed. You’ll receive your it via email within 24 hours.",
     )
 
 
-@router.post("/consent", status_code=status.HTTP_201_CREATED, response_model=ConsentResponse)
+@router.post(
+    "/consent",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ConsentActionResponse,
+)
 @limiter.limit("5/minute")
 async def grant_consent(
     request: Request,
     consent_data: ConsentCreate,
     current_user: User = Depends(get_current_user),
-    gdpr_service: GDPRService = Depends(get_gdpr_service)
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
+    redis: Redis = Depends(get_redis),
 ) -> dict[str, Any]:
     """
     Grant consent to a specific feature (e.g., SaveBuddy AI).
     """
-    consent = await gdpr_service.add_consent(request, current_user, consent_data)
-    
+    consent = await gdpr_service.add_consent(request, current_user, consent_data, redis)
+
     return standard_response(
         status="success",
         message="Consent granted successfully.",
-        data=consent.model_dump(mode="json")
+        data=consent.model_dump(mode="json"),
     )
 
 
-@router.post("/consent/{consent_id}/revoke", status_code=status.HTTP_200_OK, response_model=ConsentResponse)
+@router.post(
+    "/consent/{consent_id}/revoke",
+    status_code=status.HTTP_200_OK,
+    response_model=ConsentActionResponse,
+)
 @limiter.limit("5/minute")
 async def revoke_consent(
     request: Request,
     consent_id: str,
     current_user: User = Depends(get_current_user),
-    gdpr_service: GDPRService = Depends(get_gdpr_service)
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
+    redis: Redis = Depends(get_redis),
 ) -> dict[str, Any]:
     """
     Revoke a previously granted consent.
     """
     try:
         from uuid import UUID
+
         consent_uuid = UUID(consent_id)
     except ValueError:
         raise CustomException.e400_bad_request("Invalid consent ID format.")
 
-    consent = await gdpr_service.revoke_consent(current_user, consent_uuid)
-    
+    consent = await gdpr_service.revoke_consent(current_user, consent_uuid, redis)
+
     return standard_response(
         status="success",
         message="Consent revoked successfully.",
-        data=consent.model_dump(mode="json")
+        data=consent.model_dump(mode="json"),
+    )
+
+
+@router.get(
+    "/consent/{consent_type}/check",
+    status_code=status.HTTP_200_OK,
+    response_model=ConsentCheckResponse,
+)
+@limiter.limit("10/minute")
+async def check_consent(
+    request: Request,
+    consent_type: str,
+    current_user: User = Depends(get_current_user),
+    gdpr_service: GDPRService = Depends(get_gdpr_service),
+    redis: Redis = Depends(get_redis),
+) -> dict[str, Any]:
+    """
+    Check if the current user has granted consent for a specific feature.
+    """
+    from app.modules.shared.enums import ConsentType
+
+    try:
+        type_enum = ConsentType(consent_type.upper())
+    except ValueError:
+        raise CustomException.e400_bad_request(
+            f"Invalid consent type. Possible values: {[e.value for e in ConsentType]}"
+        )
+
+    is_active = await gdpr_service.check_consent_active(
+        current_user.id, type_enum, redis
+    )
+
+    return standard_response(
+        status="success",
+        message=f"Consent status for {consent_type} retrieved.",
+        data={"is_active": is_active},
     )

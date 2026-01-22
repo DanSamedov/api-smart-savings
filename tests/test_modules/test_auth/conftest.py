@@ -1,23 +1,24 @@
 # tests/test_modules/test_auth/conftest.py
 
-import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
-from fastapi import Request, BackgroundTasks
+
+import pytest
+from fastapi import BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security.hashing import hash_password
 from app.modules.auth.service import AuthService
+from app.modules.shared.enums import Currency, Role
 from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
 from app.modules.wallet.repository import WalletRepository
-from app.core.security.hashing import hash_password
-from app.modules.shared.enums import Role, Currency
-
 
 # ============================================
 # MOCKS & FIXTURES
 # ============================================
+
 
 @pytest.fixture
 def mock_db_session():
@@ -71,9 +72,11 @@ def mock_settings(monkeypatch):
     """Mock settings for testing."""
     monkeypatch.setenv("IP_HASH_SALT", "test_salt")
     monkeypatch.setattr("app.core.security.hashing.SALT", "test_salt")
-    monkeypatch.setattr("app.modules.auth.service.settings.MAX_FAILED_LOGIN_ATTEMPTS", 5)
+    monkeypatch.setattr(
+        "app.modules.auth.service.settings.MAX_FAILED_LOGIN_ATTEMPTS", 5
+    )
     monkeypatch.setattr("app.modules.auth.service.settings.JWT_EXPIRATION_TIME", 3600)
-    
+
     monkeypatch.setattr("app.core.security.jwt.ALGORITHM", "HS256")
     monkeypatch.setattr("app.core.security.jwt.KEY", "test_secret_key")
     monkeypatch.setattr("app.core.security.jwt.EXPIRY", 3600)

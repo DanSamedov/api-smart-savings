@@ -3,10 +3,12 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import List, TYPE_CHECKING
-from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, Numeric
+from typing import TYPE_CHECKING, List
+
 from pydantic import ConfigDict, model_validator
-from app.modules.shared.enums import GroupRole, TransactionType, Currency
+from sqlmodel import Column, DateTime, Field, Numeric, Relationship, SQLModel
+
+from app.modules.shared.enums import Currency, GroupRole, TransactionType
 
 if TYPE_CHECKING:
     from app.modules.user.models import User
@@ -15,14 +17,16 @@ if TYPE_CHECKING:
 class GroupBase(SQLModel):
     name: str = Field(nullable=False)
     target_balance: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
-    current_balance: Decimal = Field(default=Decimal("0.0"), sa_column=Column(Numeric(10, 2)))
+    current_balance: Decimal = Field(
+        default=Decimal("0.0"), sa_column=Column(Numeric(10, 2))
+    )
     require_admin_approval_for_funds_removal: bool = Field(default=False)
     currency: Currency = Field(
         sa_column=Column(Currency.sa_enum(), default=Currency.EUR, nullable=False)
     )
     is_solo: bool = Field(default=False)
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def enforce_solo_group_rules(self):
         """
         Enforce solo group constraints:
@@ -30,7 +34,7 @@ class GroupBase(SQLModel):
         """
         if self.is_solo and self.require_admin_approval_for_funds_removal:
             self.require_admin_approval_for_funds_removal = False
-            
+
         return self
 
 
@@ -39,10 +43,17 @@ class Group(GroupBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default="now()")
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default="now()"
+        )
     )
     updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default="now()", onupdate=datetime.utcnow)
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default="now()",
+            onupdate=datetime.utcnow,
+        )
     )
     members: List["GroupMember"] = Relationship(
         back_populates="group", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
@@ -51,14 +62,16 @@ class Group(GroupBase, table=True):
         back_populates="group", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
-    model_config = ConfigDict(
-        validate_assignment=True     
-    )
+    model_config = ConfigDict(validate_assignment=True)
 
 
 class GroupMemberBase(SQLModel):
-    role: GroupRole = Field(sa_column=Column(GroupRole.sa_enum(), default=GroupRole.MEMBER))
-    contributed_amount: Decimal = Field(sa_column=Column(Numeric(10, 2), default=Decimal("0.0")))
+    role: GroupRole = Field(
+        sa_column=Column(GroupRole.sa_enum(), default=GroupRole.MEMBER)
+    )
+    contributed_amount: Decimal = Field(
+        sa_column=Column(Numeric(10, 2), default=Decimal("0.0"))
+    )
 
 
 class GroupMember(GroupMemberBase, table=True):
@@ -67,14 +80,14 @@ class GroupMember(GroupMemberBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    joined_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
+    joined_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default="now()")
+    )
 
     group: "Group" = Relationship(back_populates="members")
     user: "User" = Relationship(back_populates="group_memberships")
 
-    model_config = ConfigDict(
-        validate_assignment=True     
-    )
+    model_config = ConfigDict(validate_assignment=True)
 
 
 class GroupTransactionMessageBase(SQLModel):
@@ -91,14 +104,14 @@ class GroupTransactionMessage(GroupTransactionMessageBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    timestamp: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
+    timestamp: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default="now()")
+    )
 
     group: "Group" = Relationship(back_populates="transaction_messages")
     user: "User" = Relationship()
 
-    model_config = ConfigDict(
-        validate_assignment=True     
-    )
+    model_config = ConfigDict(validate_assignment=True)
 
 
 class RemovedGroupMember(SQLModel, table=True):
@@ -107,11 +120,12 @@ class RemovedGroupMember(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     group_id: uuid.UUID = Field(foreign_key="groups.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="app_user.id", nullable=False)
-    removed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default="now()"))
-
-    model_config = ConfigDict(
-        validate_assignment=True     
+    removed_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default="now()")
     )
+
+    model_config = ConfigDict(validate_assignment=True)
+
 
 from app.modules.user.models import User
 

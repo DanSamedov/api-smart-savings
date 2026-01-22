@@ -1,20 +1,21 @@
 # app/modules/user/service.py
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
-from datetime import datetime, timezone, timedelta
 
-from fastapi import Request, BackgroundTasks
+from fastapi import BackgroundTasks, Request
 from redis.asyncio import Redis
 
 from app.core.middleware.logging import logger
+from app.core.security.hashing import hash_password, verify_password
 from app.core.utils.cache import invalidate_cache
 from app.core.utils.exceptions import CustomException
 from app.core.utils.profanity_check import is_text_allowed_async
-from app.modules.user.models import User
-from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 from app.modules.shared.enums import NotificationType
-from app.core.security.hashing import hash_password, verify_password
 from app.modules.shared.helpers import generate_secure_code
+from app.modules.user.models import User
+from app.modules.user.schemas import (ChangeEmailRequest,
+                                      ChangePasswordRequest, UserUpdate)
 
 
 class UserService:
@@ -27,7 +28,11 @@ class UserService:
         """
         Prepare and return profile details of the authenticated user.
         """
-        user_initial = ''.join([name[0] for name in current_user.full_name.upper().split()[:2]]) if current_user.full_name is not None else current_user.email[0].upper()
+        user_initial = (
+            "".join([name[0] for name in current_user.full_name.upper().split()[:2]])
+            if current_user.full_name is not None
+            else current_user.email[0].upper()
+        )
 
         data = {
             "email": current_user.email,
@@ -38,12 +43,14 @@ class UserService:
             "is_verified": current_user.is_verified,
             "preferred_currency": current_user.preferred_currency,
             "preferred_language": current_user.preferred_language,
-            "created_at": current_user.created_at
+            "created_at": current_user.created_at,
         }
 
         return data
 
-    async def update_user_details(self, redis: Redis, update_request: UserUpdate, current_user: User) -> dict[str, str]:
+    async def update_user_details(
+        self, redis: Redis, update_request: UserUpdate, current_user: User
+    ) -> dict[str, str]:
         update_data = update_request.model_dump(exclude_unset=True)
         if not update_data:
             return {"message": "No changes provided."}
@@ -53,7 +60,7 @@ class UserService:
             if not await is_text_allowed_async(update_data["stag"]):
                 logger.warning(f"Profanity detected in stag: {update_data['stag']}")
                 raise CustomException.e400_bad_request("given stag is forbidden")
-        
+
             # Check stag uniqueness (if user provided one)
             existing_user = await self.user_repo.get_by_stag(update_data["stag"])
             if existing_user and existing_user.id != current_user.id:
@@ -65,17 +72,26 @@ class UserService:
         await invalidate_cache(redis, f"user_current:{user.email}")
         return {"message": "User details updated successfully."}
 
-    async def update_user_password(self, change_password_request: ChangePasswordRequest, current_user: User, background_tasks: Optional[BackgroundTasks] = None) -> None:
+    async def update_user_password(
+        self,
+        change_password_request: ChangePasswordRequest,
+        current_user: User,
+        background_tasks: Optional[BackgroundTasks] = None,
+    ) -> None:
         """
         Update the currently authenticated user's password, verifying the current password first.
         """
         current_pass = change_password_request.current_password.get_secret_value()
-        
+
         # Verify old password
-        if not verify_password(plain_password=current_pass, hashed_password=current_user.password_hash):
+        if not verify_password(
+            plain_password=current_pass, hashed_password=current_user.password_hash
+        ):
             CustomException.e403_forbidden("Invalid current password.")
-        
-        new_hashed_password = hash_password(change_password_request.new_password.get_secret_value())
+
+        new_hashed_password = hash_password(
+            change_password_request.new_password.get_secret_value()
+        )
         # Update via repository
         updates = {"password_hash": new_hashed_password}
         await self.user_repo.update(
@@ -103,8 +119,8 @@ class UserService:
             "account_status": {
                 "is_enabled": current_user.is_enabled,
                 "is_verified": current_user.is_verified,
-                "is_deleted": current_user.is_deleted
-            }
+                "is_deleted": current_user.is_deleted,
+            },
         }
 
     async def change_user_email(
@@ -112,7 +128,7 @@ class UserService:
         redis: Redis,
         change_email_request: ChangeEmailRequest,
         current_user: User,
-        background_tasks: Optional[BackgroundTasks] = None
+        background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         """
         Change the email address for the currently authenticated user.
@@ -128,7 +144,9 @@ class UserService:
 
         # Prevent email duplication
         if await self.user_repo.get_by_email_or_none(new_email):
-            raise CustomException.e409_conflict("An account with this email already exists.")
+            raise CustomException.e409_conflict(
+                "An account with this email already exists."
+            )
 
         # Verify user password
         if not verify_password(
@@ -146,7 +164,8 @@ class UserService:
             "is_verified": False,
             "verification_code": verification_code,
             "verification_code_expires_at": expires_at,
-            "token_version": current_user.token_version + 1,  # invalidate existing tokens
+            "token_version": current_user.token_version
+            + 1,  # invalidate existing tokens
         }
         await self.user_repo.update(current_user, updates)
         await invalidate_cache(redis, f"user_current:{old_email}")
@@ -156,7 +175,7 @@ class UserService:
             self.notification_manager.send,
             background_tasks=background_tasks,
             notification_type=NotificationType.EMAIL_CHANGE_NOTIFICATION,
-            recipients=[old_email]
+            recipients=[old_email],
         )
 
         # Send verification code to new email
@@ -165,19 +184,19 @@ class UserService:
             background_tasks=background_tasks,
             notification_type=NotificationType.VERIFICATION,
             recipients=[new_email],
-            context={"verification_code": verification_code}
+            context={"verification_code": verification_code},
         )
 
     async def get_financial_analytics(self, current_user: User) -> dict[str, Any]:
         """
         Generate comprehensive financial analytics for a user.
-        
+
         Aggregates data from wallet transactions and group contributions to provide
         insights into the user's financial activity, spending patterns, and savings behavior.
-        
+
         Args:
             current_user (User): The authenticated user.
-            
+
         Returns:
             dict[str, Any]: Dictionary containing:
                 - total_transactions: Count of all wallet transactions
@@ -191,26 +210,36 @@ class UserService:
                 - group_contribution_share_per_group: Per-group contribution amounts
         """
         from app.modules.user.schemas import TransactionTypeDistribution
-        
+
         # Get wallet transaction statistics
-        wallet_stats = await self.user_repo.get_wallet_transaction_stats(current_user.id)
-        
+        wallet_stats = await self.user_repo.get_wallet_transaction_stats(
+            current_user.id
+        )
+
         # Get recent transaction frequency
         recent_transactions = await self.user_repo.get_transaction_count_last_n_days(
             current_user.id, days=30
         )
-        
+
         # Get transaction type distribution
-        type_distribution = await self.user_repo.get_transaction_type_distribution(current_user.id)
-        
+        type_distribution = await self.user_repo.get_transaction_type_distribution(
+            current_user.id
+        )
+
         # Get group contribution data
-        total_group_contributions = await self.user_repo.get_total_group_contributions(current_user.id)
-        group_breakdown = await self.user_repo.get_group_contribution_breakdown(current_user.id)
-        active_groups_count = await self.user_repo.get_active_groups_count(current_user.id)
-        
+        total_group_contributions = await self.user_repo.get_total_group_contributions(
+            current_user.id
+        )
+        group_breakdown = await self.user_repo.get_group_contribution_breakdown(
+            current_user.id
+        )
+        active_groups_count = await self.user_repo.get_active_groups_count(
+            current_user.id
+        )
+
         # Compute derived metrics
         net_flow = wallet_stats["total_amount_in"] - wallet_stats["total_amount_out"]
-        
+
         # Structure the response
         analytics_data = {
             "total_transactions": wallet_stats["total_transactions"],
@@ -221,8 +250,7 @@ class UserService:
             "total_contributed_to_groups": total_group_contributions,
             "total_groups_active": active_groups_count,
             "transaction_type_distribution": type_distribution,
-            "group_contribution_share_per_group": group_breakdown
+            "group_contribution_share_per_group": group_breakdown,
         }
-        
-        return analytics_data
 
+        return analytics_data

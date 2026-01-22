@@ -7,6 +7,7 @@ from jose import jwt
 import app.core.security.jwt as jwt_module
 from app.core.security.jwt import create_access_token, decode_token
 
+
 @pytest.fixture(autouse=True)
 def patch_jwt_constants(monkeypatch):
     monkeypatch.setattr("app.core.security.jwt.KEY", "testsecret")

@@ -1,10 +1,10 @@
 # app/modules/gdpr/repository.py
 
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.modules.gdpr.models import GDPRRequest, UserConsentAudit
 from app.modules.wallet.models import Transaction
@@ -23,7 +23,9 @@ class GDPRRepository:
         await self.db.refresh(gdpr_request)
         return gdpr_request
 
-    async def update_request(self, gdpr_request: GDPRRequest, updates: dict) -> GDPRRequest:
+    async def update_request(
+        self, gdpr_request: GDPRRequest, updates: dict
+    ) -> GDPRRequest:
         """
         Safely update a GDPRRequest, handling detached instances.
         """
@@ -44,7 +46,11 @@ class GDPRRepository:
 
     async def get_user_gdpr_requests(self, user_id: UUID) -> List[GDPRRequest]:
         """Retrieve all GDPR requests for a given user."""
-        stmt = select(GDPRRequest).where(GDPRRequest.user_id == user_id).order_by(GDPRRequest.created_at.desc())
+        stmt = (
+            select(GDPRRequest)
+            .where(GDPRRequest.user_id == user_id)
+            .order_by(GDPRRequest.created_at.desc())
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -61,21 +67,23 @@ class GDPRRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_active_consent(self, user_id: UUID, consent_type: str) -> Optional[UserConsentAudit]:
+    async def get_active_consent(
+        self, user_id: UUID, consent_type: str
+    ) -> Optional[UserConsentAudit]:
         """Retrieve the latest active consent for a specific type."""
         stmt = (
             select(UserConsentAudit)
             .where(
                 UserConsentAudit.user_id == user_id,
                 UserConsentAudit.consent_type == consent_type,
-                UserConsentAudit.revoked_at.is_(None)
+                UserConsentAudit.revoked_at.is_(None),
             )
             .order_by(UserConsentAudit.granted_at.desc())
             .limit(1)
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def update_consent(self, consent: UserConsentAudit) -> UserConsentAudit:
         """Update a consent record."""
         self.db.add(consent)

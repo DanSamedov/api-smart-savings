@@ -11,8 +11,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.wrappers import Limit
 
 from app.core.middleware.logging import (CleanupJsonFormatter, JsonFormatter,
-                              LoggingMiddleware, cleanup_old_logs,
-                              get_request_log_message)
+                                         LoggingMiddleware, cleanup_old_logs,
+                                         get_request_log_message)
 
 
 # ---------------------------
@@ -110,10 +110,12 @@ class TestLoggingMiddleware:
         mock_metrics = Mock()
         mock_metrics.set_latest_response_latency = Mock()
         mock_main.metrics = mock_metrics
-        
+
         with patch.dict(sys.modules, {"app.main": mock_main}):
-            with patch("app.core.middleware.logging.logger") as mock_logger, \
-                 patch("app.core.middleware.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"):
+            with patch("app.core.middleware.logging.logger") as mock_logger, patch(
+                "app.core.middleware.logging.hash_ip",
+                return_value="cefd8b4a2e549a7476a56e92387",
+            ):
                 mw = LoggingMiddleware(app=None)
                 response = await mw.dispatch(mock_request, mock_call_next)
 
@@ -122,7 +124,8 @@ class TestLoggingMiddleware:
                 call_args = mock_logger.info.call_args
                 assert call_args[1]["extra"]["status_code"] == 200
                 assert (
-                    call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+                    call_args[1]["extra"]["ip_anonymized"]
+                    == "cefd8b4a2e549a7476a56e92387"
                 )
 
     @pytest.mark.asyncio
@@ -143,10 +146,12 @@ class TestLoggingMiddleware:
         mock_metrics = Mock()
         mock_metrics.set_latest_response_latency = Mock()
         mock_main.metrics = mock_metrics
-        
+
         with patch.dict(sys.modules, {"app.main": mock_main}):
-            with patch("app.core.middleware.logging.logger") as mock_logger, \
-                 patch("app.core.middleware.logging.hash_ip", return_value="cefd8b4a2e549a7476a56e92387"):
+            with patch("app.core.middleware.logging.logger") as mock_logger, patch(
+                "app.core.middleware.logging.hash_ip",
+                return_value="cefd8b4a2e549a7476a56e92387",
+            ):
                 mw = LoggingMiddleware(app=None)
 
                 with pytest.raises(RateLimitExceeded):
@@ -156,7 +161,8 @@ class TestLoggingMiddleware:
                 call_args = mock_logger.warning.call_args
                 assert call_args[1]["extra"]["status_code"] == 429
                 assert (
-                    call_args[1]["extra"]["ip_anonymized"] == "cefd8b4a2e549a7476a56e92387"
+                    call_args[1]["extra"]["ip_anonymized"]
+                    == "cefd8b4a2e549a7476a56e92387"
                 )
 
 
@@ -203,11 +209,19 @@ class TestCleanupOldLogs:
         log_dir.mkdir()
         log_file = log_dir / "requests.log"
 
-        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S,%f")
-        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S,%f")
+        old_time = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime(
+            "%Y-%m-%d %H:%M:%S,%f"
+        )
+        recent_time = (datetime.datetime.now() - datetime.timedelta(days=3)).strftime(
+            "%Y-%m-%d %H:%M:%S,%f"
+        )
 
-        old_entry = json.dumps({"datetime": old_time, "level": "INFO", "message": "Old log"})
-        recent_entry = json.dumps({"datetime": recent_time, "level": "INFO", "message": "Recent log"})
+        old_entry = json.dumps(
+            {"datetime": old_time, "level": "INFO", "message": "Old log"}
+        )
+        recent_entry = json.dumps(
+            {"datetime": recent_time, "level": "INFO", "message": "Recent log"}
+        )
 
         log_file.write_text(f"{old_entry}\n{recent_entry}\n")
 

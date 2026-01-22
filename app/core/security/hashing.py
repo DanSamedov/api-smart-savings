@@ -1,7 +1,7 @@
 # app/core/security/hashing.py
 
-import os
 import hashlib
+import os
 
 import bcrypt
 from passlib.context import CryptContext
@@ -13,6 +13,7 @@ SALT = os.getenv("IP_HASH_SALT")
 
 def hash_ip(ip: str) -> str:
     return hashlib.sha256((ip + SALT).encode()).hexdigest()
+
 
 def hash_password(password: str) -> str:
     """Hash a plain-text password using bcrypt."""

@@ -3,14 +3,14 @@ from datetime import datetime, timezone
 
 import psutil
 from pydantic import BaseModel
-from sqlmodel import select
 from redis.asyncio import Redis
+from sqlmodel import select
 
 
 class Metrics:
     def __init__(self):
         self.startup_time: datetime = datetime.now()
-        self.uptime: str = ''
+        self.uptime: str = ""
         self.system_metrics: dict = {}
         self.db_status: bool = False
         self.latest_response_latency: float = 0.0
@@ -18,7 +18,7 @@ class Metrics:
     def set_latest_response_latency(self, latency: float):
         """
         Sets latest_response_latency.
-        
+
         Args:
             latency (float): The response latency in milliseconds.
         """
@@ -27,7 +27,7 @@ class Metrics:
 
 class Metrics_V2(BaseModel):
     startup_time: datetime = datetime.now(timezone.utc)
-    uptime: str = ''
+    uptime: str = ""
     system_metrics: dict = {}
     db_active: bool = False
     cache_active: bool = False
@@ -35,10 +35,12 @@ class Metrics_V2(BaseModel):
     latest_request_method: str = ""
     latest_response_latency: float = 0.0
 
-    def set_latest_response_latency(self, latency: float, path: str, method: str) -> None:
+    def set_latest_response_latency(
+        self, latency: float, path: str, method: str
+    ) -> None:
         """
         Sets latest_response_latency, latest_request_path and latest_request_method.
-        
+
         Args:
             latency (float): The response latency in milliseconds.
             path (str): The path of the request.

@@ -7,16 +7,16 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from app.core.config import Settings
-
+from app.modules.gdpr.models import UserConsentAudit
+from app.modules.group.models import (Group, GroupMember,
+                                      GroupTransactionMessage)
+from app.modules.ims.models import IMSAction, ScheduledTransaction
 # ================================
 # MODELS
 # ================================
 from app.modules.user.models import User
-from app.modules.wallet.models import Transaction, Wallet, ExchangeRate
-from app.modules.group.models import Group, GroupMember, GroupTransactionMessage
-from app.modules.ims.models import IMSAction
-from app.modules.ims.models import ScheduledTransaction
-from app.modules.gdpr.models import UserConsentAudit
+from app.modules.wallet.models import ExchangeRate, Transaction, Wallet
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

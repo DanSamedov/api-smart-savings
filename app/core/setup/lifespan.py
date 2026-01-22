@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
-from app.core.config import settings
 
+from app.core.config import settings
 
 
 # =======================================
@@ -18,11 +18,12 @@ async def run_lifespan(app: FastAPI):
     - Startup: initialize test accounts (dev), soft-delete simulation, set timezone, start scheduler
     - Shutdown: stop scheduler
     """
-    from app.infra.database.init_db import init_test_accounts
     from app.core.middleware.logging import cleanup_old_logs
-    from app.core.tasks.cron_jobs import anonymize_soft_deleted_users, process_scheduled_transactions
-    from app.infra.database.session import set_utc_timezone
     from app.core.setup.redis import redis_client
+    from app.core.tasks.cron_jobs import (anonymize_soft_deleted_users,
+                                          process_scheduled_transactions)
+    from app.infra.database.init_db import init_test_accounts
+    from app.infra.database.session import set_utc_timezone
 
     print(f"\n[STARTUP INFO] (i) Environment: {settings.APP_ENV}\n", flush=True)
 
@@ -42,8 +43,10 @@ async def run_lifespan(app: FastAPI):
 
     # --- Scheduler for production / recurring jobs ---
     scheduler = AsyncIOScheduler()
+
     async def run_anonymize_job():
         await anonymize_soft_deleted_users()
+
     scheduler.add_job(
         run_anonymize_job,
         trigger="interval",
@@ -52,11 +55,12 @@ async def run_lifespan(app: FastAPI):
         max_instances=1,
         coalesce=True,
         replace_existing=True,
-    )   
-    
+    )
+
     # --- Scheduled transaction processor (runs every minute) ---
     async def run_scheduled_tx_job():
         await process_scheduled_transactions()
+
     scheduler.add_job(
         run_scheduled_tx_job,
         trigger="interval",
@@ -66,13 +70,17 @@ async def run_lifespan(app: FastAPI):
         coalesce=True,
         replace_existing=True,
     )
-    
+
     scheduler.start()
     print(
         f"[STARTUP INFO] (i) User anonymization cron job scheduled every "
-        f"{settings.HARD_DELETE_CRON_INTERVAL_HOURS} hour(s)\n", flush=True
+        f"{settings.HARD_DELETE_CRON_INTERVAL_HOURS} hour(s)\n",
+        flush=True,
     )
-    print("[STARTUP INFO] (i) Scheduled transaction processor running every minute\n", flush=True)
+    print(
+        "[STARTUP INFO] (i) Scheduled transaction processor running every minute\n",
+        flush=True,
+    )
 
     # --- Yield control to app ---
     yield

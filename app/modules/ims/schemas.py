@@ -1,30 +1,27 @@
-
 # app/modules/ims/schemas.py
 
-from typing import List, Dict, Optional, Union, Any
+from calendar import day_name
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
-from calendar import day_name
+
 from pydantic import BaseModel, Field, field_validator
 
-from app.modules.shared.enums import (
-    TransactionFrequency,
-    TransactionStatus,
-    SavingsIntent,
-    DestinationType,
-    ValidationStatus,
-    Currency,
-)
+from app.modules.shared.enums import (Currency, DestinationType, SavingsIntent,
+                                      TransactionFrequency, TransactionStatus,
+                                      ValidationStatus)
 
 
 class IMSInputSchema(BaseModel):
     """Input schema for IMS."""
+
     prompt: str
 
 
 class IMSContextSchema(BaseModel):
     """Context schema for IMS service."""
+
     prompt: str
     user_groups: Dict[str, str]
     user_goals: Dict[str, str]
@@ -32,6 +29,7 @@ class IMSContextSchema(BaseModel):
 
 class InterpretationData(BaseModel):
     """Result from NLP interpretation."""
+
     intent: SavingsIntent
     amount: Optional[Decimal] = None
     currency: Optional[Currency] = Currency.EUR
@@ -48,34 +46,36 @@ class InterpretationData(BaseModel):
 
 class ProjectionScheduleItem(BaseModel):
     """Single projected execution entry."""
+
     date: datetime
     amount: Decimal
 
 
 class DraftTransaction(BaseModel):
     """Draft transaction returned for user confirmation."""
+
     # Core fields
     amount: Optional[Decimal] = None
     currency: Currency = Currency.EUR
     frequency: TransactionFrequency = TransactionFrequency.ONCE
-    
+
     # Destination
     destination_type: DestinationType = DestinationType.GOAL
     goal_name: Optional[str] = None
     group_name: Optional[str] = None
-    
+
     # Schedule
     day_of_week: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    
+
     # Projection (calculated by backend)
     projected_dates: List[ProjectionScheduleItem] = Field(
         default_factory=list,
-        description="List of projected execution dates and amounts. Note: This list is limited to a maximum of 24 future occurrences."
+        description="List of projected execution dates and amounts. Note: This list is limited to a maximum of 24 future occurrences.",
     )
     first_run_date: Optional[datetime] = None
-    
+
     # Validation status
     validation_status: ValidationStatus = ValidationStatus.VALID
     missing_fields: List[str] = Field(default_factory=list)
@@ -84,6 +84,7 @@ class DraftTransaction(BaseModel):
 
 class ConfirmTransactionRequest(BaseModel):
     """Request from frontend to confirm/finalize a draft transaction."""
+
     amount: Optional[Decimal] = None
     currency: Currency
     frequency: TransactionFrequency
@@ -97,6 +98,7 @@ class ConfirmTransactionRequest(BaseModel):
 
 class ScheduledTransactionResponse(BaseModel):
     """Response after confirming a scheduled transaction."""
+
     id: UUID
     status: TransactionStatus
     amount: Decimal
@@ -117,6 +119,7 @@ class ScheduledTransactionResponse(BaseModel):
 
 class ScheduledTransactionItem(BaseModel):
     """Brief transaction details for list view."""
+
     id: str
     amount: float
     currency: str
@@ -150,6 +153,7 @@ class CancelResponse(BaseResponse):
 
 class ChatHistoryItem(BaseModel):
     """Represents an item in the chat history (either a user prompt or a transaction result)."""
+
     type: str = Field(..., description="Type of item: 'prompt' or 'transaction'")
     id: str
     timestamp: datetime

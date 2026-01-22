@@ -2,8 +2,10 @@
 
 from enum import Enum
 
+
 class Currency(str, Enum):
     """Enumeration of supported currencies."""
+
     EUR = "EUR"
     USD = "USD"
     PLN = "PLN"
@@ -13,10 +15,13 @@ class Currency(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="currency_enum")
+
 
 class TransactionType(str, Enum):
     """Enumeration of transaction types."""
+
     WALLET_DEPOSIT = "WALLET_DEPOSIT"
     WALLET_WITHDRAWAL = "WALLET_WITHDRAWAL"
     GROUP_SAVINGS_DEPOSIT = "GROUP_SAVINGS_DEPOSIT"
@@ -27,20 +32,26 @@ class TransactionType(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="transaction_type_enum")
+
 
 class GroupRole(str, Enum):
     """Enumeration of group member roles."""
+
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="group_role_enum")
+
 
 class TransactionStatus(str, Enum):
     """Enumeration of transaction statuses."""
+
     ACTIVE = "ACTIVE"
     PENDING = "PENDING"
     COMPLETED = "COMPLETED"
@@ -49,10 +60,13 @@ class TransactionStatus(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="transaction_status_enum")
+
 
 class Role(str, Enum):
     """Enumeration of user roles."""
+
     USER = "USER"
     ADMIN = "ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
@@ -61,20 +75,26 @@ class Role(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="role_enum")
+
 
 class GDPRRequestType(str, Enum):
     """Enumeration of GDPR Request types."""
+
     DATA_EXPORT = "DATA_EXPORT"
     DATA_MODIFICATION = "DATA_MODIFICATION"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="gdpr_request_type_enum")
+
 
 class GDPRRequestStatus(str, Enum):
     """Enumeration of GDPR Request statuses."""
+
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     REFUSED = "REFUSED"
@@ -82,10 +102,13 @@ class GDPRRequestStatus(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="gdpr_request_status_enum")
+
 
 class NotificationType(str, Enum):
     """Enumeration of valid notification types"""
+
     WELCOME = "WELCOME"
     VERIFICATION = "VERIFICATION"
     PASSWORD_RESET = "PASSWORD_RESET"
@@ -110,11 +133,13 @@ class NotificationType(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="notification_type_enum")
 
 
 class TransactionFrequency(str, Enum):
     """Frequency options for scheduled transactions."""
+
     ONCE = "ONCE"
     DAILY = "DAILY"
     WEEKLY = "WEEKLY"
@@ -123,58 +148,69 @@ class TransactionFrequency(str, Enum):
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="transaction_frequency_enum")
 
 
 class SavingsIntent(str, Enum):
     """Intent type for savings transactions."""
+
     PERSONAL_SAVING = "personal_saving"
     GROUP_SAVING = "group_saving"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="savings_intent_enum")
 
 
 class DestinationType(str, Enum):
     """Transaction destination type (savings only)."""
+
     GOAL = "GOAL"
     GROUP = "GROUP"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="destination_type_enum")
 
 
 class ValidationStatus(str, Enum):
     """Status of interpretation validation."""
+
     VALID = "VALID"
     CLARIFICATION_REQUIRED = "CLARIFICATION_REQUIRED"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="validation_status_enum")
 
 
 class ConsentType(str, Enum):
     """Enumeration of consent types."""
+
     SAVEBUDDY_AI = "SAVEBUDDY_AI"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="consent_type_enum")
 
 
 class ConsentStatus(str, Enum):
     """Enumeration of consent statuses."""
+
     GRANTED = "GRANTED"
     REVOKED = "REVOKED"
 
     @classmethod
     def sa_enum(cls):
         from sqlalchemy import Enum as SAEnum
+
         return SAEnum(cls, name="consent_status_enum")

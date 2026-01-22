@@ -7,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.middleware.logging import logger
+
 from .response import standard_response
 
 

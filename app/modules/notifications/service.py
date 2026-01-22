@@ -1,7 +1,7 @@
 # app/modules/notifications/service.py
 
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Awaitable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from fastapi import BackgroundTasks
 
@@ -15,7 +15,13 @@ class NotificationService(ABC):
     """Abstract base class for all notification channels."""
 
     @abstractmethod
-    async def send(self, notification_type: NotificationType, recipients: list[str], context: Optional[dict] = None, attachments: Optional[list["UploadFile"]] = None):
+    async def send(
+        self,
+        notification_type: NotificationType,
+        recipients: list[str],
+        context: Optional[dict] = None,
+        attachments: Optional[list["UploadFile"]] = None,
+    ):
         pass
 
     async def schedule(

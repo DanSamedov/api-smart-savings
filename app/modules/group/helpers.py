@@ -15,13 +15,15 @@ async def validate_group_exists(group: Group | None) -> None:
         raise CustomException.not_found(detail="Group not found")
 
 
-async def validate_user_is_member(members: List[GroupMember], user_id: uuid.UUID) -> GroupMember:
+async def validate_user_is_member(
+    members: List[GroupMember], user_id: uuid.UUID
+) -> GroupMember:
     """
     Validate that a user is a member of the group.
-    
+
     Returns:
         GroupMember: The member object if found
-        
+
     Raises:
         CustomException: If user is not a member
     """
@@ -31,7 +33,9 @@ async def validate_user_is_member(members: List[GroupMember], user_id: uuid.UUID
     return member
 
 
-async def validate_minimum_members(members: List[GroupMember], minimum: int = 2) -> None:
+async def validate_minimum_members(
+    members: List[GroupMember], minimum: int = 2
+) -> None:
     """Validate that a group has the minimum required members."""
     if len(members) < minimum:
         raise CustomException.bad_request(
@@ -79,18 +83,20 @@ async def validate_withdrawal_amount(member: GroupMember, amount: Decimal) -> No
         )
 
 
-def calculate_milestone_percentage(current_balance: Decimal, target_balance: Decimal) -> int:
+def calculate_milestone_percentage(
+    current_balance: Decimal, target_balance: Decimal
+) -> int:
     """
     Calculate the milestone percentage reached.
-    
+
     Returns:
         int: The milestone percentage (0, 50, or 100)
     """
     if target_balance == 0:
         return 0
-    
+
     percentage = (current_balance / target_balance) * 100
-    
+
     if percentage >= 100:
         return 100
     elif percentage >= 50:
@@ -101,4 +107,4 @@ def calculate_milestone_percentage(current_balance: Decimal, target_balance: Dec
 
 def format_currency_amount(amount: float | Decimal) -> str:
     """Format a currency amount, removing trailing zeros."""
-    return f"{float(amount):,.2f}".rstrip('0').rstrip('.')
+    return f"{float(amount):,.2f}".rstrip("0").rstrip(".")

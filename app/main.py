@@ -4,22 +4,23 @@ from fastapi import Depends, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from redis.asyncio import Redis
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.core.middleware.rate_limiter import limiter
-from app.core.setup.instance import application
 from app.api.dependencies import authenticate_admin, get_redis
-from redis.asyncio import Redis
 from app.api.routers import main_router
 from app.core.config import settings
 from app.core.middleware.logging import LoggingMiddleware
+from app.core.middleware.rate_limiter import limiter
+from app.core.setup.instance import application
 from app.core.utils import error_handlers
-from app.core.utils.response import standard_response
-from app.infra.metrics.metrics_data import Metrics_V2, get_uptime, get_system_metrics, get_db_status, get_redis_status
 from app.core.utils.cache import cache_or_get
-
+from app.core.utils.response import standard_response
+from app.infra.metrics.metrics_data import (Metrics_V2, get_db_status,
+                                            get_redis_status,
+                                            get_system_metrics, get_uptime)
 
 app_name = settings.APP_NAME
 app_version = settings.APP_VERSION
@@ -61,8 +62,12 @@ main_app.include_router(main_router, prefix="/v1")
 # EXCEPTION HANDLERS
 # =======================================
 main_app.add_exception_handler(RateLimitExceeded, error_handlers.rate_limit_handler)
-main_app.add_exception_handler(StarletteHTTPException, error_handlers.http_exception_handler)
-main_app.add_exception_handler(RequestValidationError, error_handlers.validation_exception_handler)
+main_app.add_exception_handler(
+    StarletteHTTPException, error_handlers.http_exception_handler
+)
+main_app.add_exception_handler(
+    RequestValidationError, error_handlers.validation_exception_handler
+)
 main_app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
 
 
@@ -74,11 +79,13 @@ main_app.add_exception_handler(Exception, error_handlers.generic_exception_handl
 def root(request: Request):
     return standard_response(status="success", message="API is live.")
 
+
 @main_app.get("/docs/redoc", include_in_schema=False)
 async def custom_redoc_ui(authenticated: bool = Depends(authenticate_admin)):
     return get_redoc_html(
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
+
 
 @main_app.get("/docs/swagger", include_in_schema=False)
 async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
@@ -86,10 +93,14 @@ async def custom_swagger_ui(authenticated: bool = Depends(authenticate_admin)):
         openapi_url="/docs/openapi.json", title=f"{app_name} API Docs"
     )
 
+
 @main_app.get("/docs/openapi.json", include_in_schema=False)
 async def openapi_json(authenticated: bool = Depends(authenticate_admin)):
-    return get_openapi(title=f"{app_name} API Docs", version=app_version or "n/a", routes=main_app.routes)
-
+    return get_openapi(
+        title=f"{app_name} API Docs",
+        version=app_version or "n/a",
+        routes=main_app.routes,
+    )
 
 
 # =======================================
@@ -110,7 +121,7 @@ async def get_health_check(redis: Redis):
             "last_request_latency_ms": app_metrics.latest_response_latency,
             "last_request_path": app_metrics.latest_request_path,
             "last_request_method": app_metrics.latest_request_method,
-            "system_metrics": app_metrics.system_metrics
+            "system_metrics": app_metrics.system_metrics,
         }
 
     return await cache_or_get(
@@ -123,11 +134,8 @@ async def get_health_check(redis: Redis):
 
 @main_app.get("/health")
 async def health_check(redis: Redis = Depends(get_redis)):
-
     response = await get_health_check(redis)
 
     return standard_response(
-        status="success",
-        message="API health status",
-        data=response 
+        status="success", message="API health status", data=response
     )

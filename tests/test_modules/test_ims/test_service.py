@@ -1,30 +1,22 @@
 # tests/test_modules/test_ims/test_service.py
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 from pydantic import ValidationError
 
-from app.modules.ims.service import ProjectionService, IMSService
-from app.modules.ims.schemas import (
-    InterpretationData,
-    DraftTransaction,
-    ConfirmTransactionRequest,
-    IMSContextSchema
-)
-from app.modules.shared.enums import (
-    TransactionFrequency,
-    TransactionStatus,
-    DestinationType,
-    Currency,
-    ValidationStatus,
-    SavingsIntent
-)
 from app.modules.ims.models import ScheduledTransaction
+from app.modules.ims.schemas import (ConfirmTransactionRequest,
+                                     DraftTransaction, IMSContextSchema,
+                                     InterpretationData)
+from app.modules.ims.service import IMSService, ProjectionService
+from app.modules.shared.enums import (Currency, DestinationType, SavingsIntent,
+                                      TransactionFrequency, TransactionStatus,
+                                      ValidationStatus)
 
 
 @pytest.fixture
@@ -56,12 +48,11 @@ def test_user():
 # ProjectionService Tests
 # ========================
 
+
 def test_get_projection_schedule_once():
     start_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
     dates = ProjectionService.get_projection_schedule(
-        start_date=start_date,
-        end_date=None,
-        frequency=TransactionFrequency.ONCE
+        start_date=start_date, end_date=None, frequency=TransactionFrequency.ONCE
     )
     assert len(dates) == 1
     assert dates[0] == start_date
@@ -74,7 +65,7 @@ def test_get_projection_schedule_daily():
         start_date=start_date,
         end_date=None,
         frequency=TransactionFrequency.DAILY,
-        max_occurrences=5
+        max_occurrences=5,
     )
     assert len(dates) == 5
     assert dates[0] == start_date
@@ -91,7 +82,7 @@ def test_get_projection_schedule_weekly():
         end_date=None,
         frequency=TransactionFrequency.WEEKLY,
         day_of_week=0,
-        max_occurrences=3
+        max_occurrences=3,
     )
     assert len(dates) == 3
     # 2026-01-01 is Thursday (3). Next Monday is 2026-01-05.
@@ -106,7 +97,7 @@ def test_get_projection_schedule_monthly_edge_case():
         start_date=start_date,
         end_date=None,
         frequency=TransactionFrequency.MONTHLY,
-        max_occurrences=3
+        max_occurrences=3,
     )
     assert len(dates) == 3
     assert dates[0] == start_date
@@ -125,7 +116,7 @@ def test_create_draft_valid():
         start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
         goal_name="Vacation",
         destination_type=DestinationType.GOAL,
-        raw_prompt="Save 100 every month for vacation"
+        raw_prompt="Save 100 every month for vacation",
     )
     draft = ProjectionService.create_draft(interpretation)
     assert draft.validation_status == ValidationStatus.VALID
@@ -140,7 +131,7 @@ def test_create_draft_missing_amount():
         currency=Currency.EUR,
         frequency=TransactionFrequency.ONCE,
         destination_type=DestinationType.GOAL,
-        raw_prompt="Save some money"
+        raw_prompt="Save some money",
     )
     draft = ProjectionService.create_draft(interpretation)
     assert draft.validation_status == ValidationStatus.CLARIFICATION_REQUIRED
@@ -153,7 +144,9 @@ def test_create_draft_missing_amount():
 
 
 @pytest.mark.asyncio
-async def test_confirm_transaction_success(ims_service, mock_ims_repo, mock_group_repo, test_user):
+async def test_confirm_transaction_success(
+    ims_service, mock_ims_repo, mock_group_repo, test_user
+):
     group_id = uuid.uuid4()
     group_name = "My Group"
     request = ConfirmTransactionRequest(
@@ -162,33 +155,35 @@ async def test_confirm_transaction_success(ims_service, mock_ims_repo, mock_grou
         frequency=TransactionFrequency.DAILY,
         start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
         destination_type=DestinationType.GROUP,
-        group_name=group_name
+        group_name=group_name,
     )
-    
+
     # Mock groups lookup
     mock_group = MagicMock()
     mock_group.id = group_id
     mock_group.name = group_name
     mock_group_repo.get_user_groups.return_value = [mock_group]
-    
+
     # Mock repo creation
     mock_ims_repo.create_scheduled_transaction.side_effect = lambda x: x
-    
+
     scheduled_tx = await ims_service.confirm_transaction(request, test_user)
-    
+
     assert scheduled_tx.user_id == test_user.id
     assert scheduled_tx.amount == Decimal("75.00")
     assert scheduled_tx.status == TransactionStatus.ACTIVE
     assert scheduled_tx.next_run_at == datetime(2026, 1, 1, tzinfo=timezone.utc)
     assert len(scheduled_tx.projection_log) > 0
     assert scheduled_tx.group_id == group_id
-    
+
     mock_group_repo.get_user_groups.assert_called_once_with(test_user.id)
     mock_ims_repo.create_scheduled_transaction.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_confirm_transaction_not_member_or_not_found(ims_service, mock_group_repo, test_user):
+async def test_confirm_transaction_not_member_or_not_found(
+    ims_service, mock_group_repo, test_user
+):
     # If the group is not found in the user's groups list, it implies they are not a member (or it doesn't exist)
     request = ConfirmTransactionRequest(
         amount=Decimal("75.00"),
@@ -196,15 +191,14 @@ async def test_confirm_transaction_not_member_or_not_found(ims_service, mock_gro
         frequency=TransactionFrequency.DAILY,
         start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
         destination_type=DestinationType.GROUP,
-        group_name="Unknown Group"
+        group_name="Unknown Group",
     )
-    
+
     # User has no groups
     mock_group_repo.get_user_groups.return_value = []
-    
+
     with pytest.raises(ValueError, match="Group 'Unknown Group' not found"):
         await ims_service.confirm_transaction(request, test_user)
-
 
 
 @pytest.mark.asyncio
@@ -213,9 +207,9 @@ async def test_cancel_transaction_success(ims_service, mock_ims_repo, test_user)
     mock_tx = MagicMock()
     mock_tx.user_id = test_user.id
     mock_ims_repo.get_scheduled_transaction_by_id.return_value = mock_tx
-    
+
     await ims_service.cancel_scheduled_transaction(tx_id, test_user)
-    
+
     mock_ims_repo.cancel_scheduled_transaction.assert_called_once_with(tx_id)
 
 
@@ -223,8 +217,8 @@ async def test_cancel_transaction_success(ims_service, mock_ims_repo, test_user)
 async def test_cancel_transaction_not_owner(ims_service, mock_ims_repo, test_user):
     tx_id = uuid.uuid4()
     mock_tx = MagicMock()
-    mock_tx.user_id = uuid.uuid4() # different user
+    mock_tx.user_id = uuid.uuid4()  # different user
     mock_ims_repo.get_scheduled_transaction_by_id.return_value = mock_tx
-    
+
     with pytest.raises(ValueError, match="You do not own this scheduled transaction"):
         await ims_service.cancel_scheduled_transaction(tx_id, test_user)

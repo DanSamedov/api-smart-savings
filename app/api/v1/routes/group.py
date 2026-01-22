@@ -1,34 +1,34 @@
 # app/api/v1/routes/group.py
 
-import uuid
-import logging
 import asyncio
+import logging
+import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, status, BackgroundTasks, Request, WebSocket, WebSocketDisconnect
+
+from fastapi import (APIRouter, BackgroundTasks, Depends, Request, WebSocket,
+                     WebSocketDisconnect, status)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
+from app.api.dependencies import (get_current_user, get_current_user_ws,
+                                  get_group_service, get_redis)
 from app.core.middleware.rate_limiter import limiter
 from app.core.utils.background_tasks import WebSocketBackgroundTasks
-
-from app.api.dependencies import get_current_user, get_group_service, get_redis, get_current_user_ws
-from app.modules.group.websockets import manager
-from app.core.utils.response import GroupResponse, UserGroupsResponse, GroupMembersResponse, GroupTransactionsResponse
-from app.modules.group.schemas import (
-    AddMemberRequest,
-    RemoveMemberRequest,
-    GroupUpdate,
-    GroupDepositRequest,
-    GroupWithdrawRequest,
-)
+from app.core.utils.response import (GroupMembersResponse, GroupResponse,
+                                     GroupTransactionsResponse,
+                                     UserGroupsResponse)
 from app.modules.group.models import GroupBase
-from app.modules.user.models import User
+from app.modules.group.schemas import (AddMemberRequest, GroupDepositRequest,
+                                       GroupUpdate, GroupWithdrawRequest,
+                                       RemoveMemberRequest)
 from app.modules.group.service import GroupService
+from app.modules.group.websockets import manager
 from app.modules.shared.enums import GroupRole
-
+from app.modules.user.models import User
 
 router = APIRouter()
+
 
 @router.post("/", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
@@ -45,14 +45,12 @@ async def create_group(
 
     # Convert the Group object to a dictionary
     group_dict = jsonable_encoder(new_group)
-    
+
     # Add the missing computed fields
-    group_dict.update({
-        "members": [],
-        "is_member": True,
-        "user_role": GroupRole.ADMIN.value
-    })
-    
+    group_dict.update(
+        {"members": [], "is_member": True, "user_role": GroupRole.ADMIN.value}
+    )
+
     return GroupResponse(data=group_dict)
 
 
@@ -82,24 +80,32 @@ async def get_group(
     Get detailed information about a specific group. Only members can view group details.
     """
     group = await service.get_group(group_id, current_user)
-    
+
     # Convert to dict and enrich
     group_dict = jsonable_encoder(group)
-    
+
     # Get member info for the current user
-    current_member = next((m for m in group.members if str(m.user_id) == str(current_user.id)), None)
-    
-    group_dict.update({
-        "is_member": True,
-        "user_role": current_member.role if current_member else None,
-        # Ensure members are also serialized correctly if they are objects
-        "members": [jsonable_encoder(m) for m in group.members]
-    })
-    
+    current_member = next(
+        (m for m in group.members if str(m.user_id) == str(current_user.id)), None
+    )
+
+    group_dict.update(
+        {
+            "is_member": True,
+            "user_role": current_member.role if current_member else None,
+            # Ensure members are also serialized correctly if they are objects
+            "members": [jsonable_encoder(m) for m in group.members],
+        }
+    )
+
     return GroupResponse(data=group_dict)
 
 
-@router.get("/{group_id}/members", response_model=GroupMembersResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/{group_id}/members",
+    response_model=GroupMembersResponse,
+    status_code=status.HTTP_200_OK,
+)
 @limiter.limit("20/minute")
 async def get_group_members(
     request: Request,
@@ -111,23 +117,29 @@ async def get_group_members(
     Get all members of a specific group. Only members can view this list.
     """
     members = await service.get_group_members(group_id, current_user)
-    
+
     # Enrich member data with user details
     members_data = []
     for member in members:
         member_dict = jsonable_encoder(member)
         if member.user:
-            member_dict.update({
-                "user_email": member.user.email,
-                "user_full_name": member.user.full_name,
-                "user_stag": member.user.stag
-            })
+            member_dict.update(
+                {
+                    "user_email": member.user.email,
+                    "user_full_name": member.user.full_name,
+                    "user_stag": member.user.stag,
+                }
+            )
         members_data.append(member_dict)
-        
+
     return GroupMembersResponse(data=members_data)
 
 
-@router.get("/{group_id}/transactions", response_model=GroupTransactionsResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/{group_id}/transactions",
+    response_model=GroupTransactionsResponse,
+    status_code=status.HTTP_200_OK,
+)
 @limiter.limit("20/minute")
 async def get_group_transactions(
     request: Request,
@@ -137,17 +149,17 @@ async def get_group_transactions(
 ):
     """
     Get all transactions for a specific group, sorted by latest first.
-    
+
     This endpoint retrieves the complete transaction history for a group, including
     contributions and withdrawals. Only group members can access this endpoint.
-    
+
     Args:
         group_id (UUID): The unique identifier of the group
-    
+
     The `is_current_user` flag helps the frontend distinguish between:
     - Current user's transactions (display on right side, different styling)
     - Other members' transactions (display on left side)
-    
+
     Returns:
         GroupTransactionsResponse: A list of transactions with the following fields for each transaction:
             - `id` (UUID): Transaction identifier
@@ -165,26 +177,32 @@ async def get_group_transactions(
         HTTPException: If the group is not found or the user is not a member of the group
     """
     transactions = await service.get_group_transactions(group_id, current_user)
-    
+
     # Enrich transaction data with user details and is_current_user flag
     transactions_data = []
     for transaction in transactions:
         transaction_dict = jsonable_encoder(transaction)
         if transaction.user:
-            transaction_dict.update({
-                "user_email": transaction.user.email,
-                "user_full_name": transaction.user.full_name,
-                "user_stag": transaction.user.stag,
-                "is_current_user": str(transaction.user_id) == str(current_user.id)
-            })
+            transaction_dict.update(
+                {
+                    "user_email": transaction.user.email,
+                    "user_full_name": transaction.user.full_name,
+                    "user_stag": transaction.user.stag,
+                    "is_current_user": str(transaction.user_id) == str(current_user.id),
+                }
+            )
         else:
-            transaction_dict["is_current_user"] = str(transaction.user_id) == str(current_user.id)
+            transaction_dict["is_current_user"] = str(transaction.user_id) == str(
+                current_user.id
+            )
         transactions_data.append(transaction_dict)
-        
+
     return GroupTransactionsResponse(data=transactions_data)
 
 
-@router.patch("/{group_id}/settings", response_model=GroupResponse, status_code=status.HTTP_200_OK)
+@router.patch(
+    "/{group_id}/settings", response_model=GroupResponse, status_code=status.HTTP_200_OK
+)
 @limiter.limit("10/minute")
 async def update_group_settings(
     request: Request,
@@ -196,18 +214,18 @@ async def update_group_settings(
     """
     Update a group's settings. Only the group admin can perform this action.
     """
-    updated_group = await service.update_group_settings(group_id, group_in, current_user)
-    
+    updated_group = await service.update_group_settings(
+        group_id, group_in, current_user
+    )
+
     # Convert to dict
     group_dict = jsonable_encoder(updated_group)
-    
+
     # Since only admin can update, we know the role
-    group_dict.update({
-        "is_member": True,
-        "user_role": GroupRole.ADMIN.value,
-        "members": []
-    })
-    
+    group_dict.update(
+        {"is_member": True, "user_role": GroupRole.ADMIN.value, "members": []}
+    )
+
     return GroupResponse(data=group_dict)
 
 
@@ -238,7 +256,9 @@ async def add_group_member(
     """
     Add a member to a group. Only the group admin can perform this action.
     """
-    return await service.add_group_member(group_id, member_in, current_user, background_tasks)
+    return await service.add_group_member(
+        group_id, member_in, current_user, background_tasks
+    )
 
 
 @router.post("/{group_id}/remove-member", status_code=status.HTTP_200_OK)
@@ -255,7 +275,9 @@ async def remove_group_member(
     Remove a member from a group. Only the group admin can perform this action.
     The admin cannot remove themselves.
     """
-    return await service.remove_group_member(group_id, member_in, current_user, background_tasks)
+    return await service.remove_group_member(
+        group_id, member_in, current_user, background_tasks
+    )
 
 
 @router.post("/{group_id}/contribute", status_code=status.HTTP_201_CREATED)
@@ -274,7 +296,9 @@ async def contribute_to_group(
     debit the user's wallet and credit the group, or fail without
     changing any balances.
     """
-    result = await service.contribute_to_group(redis, group_id, transaction_in, current_user, background_tasks)
+    result = await service.contribute_to_group(
+        redis, group_id, transaction_in, current_user, background_tasks
+    )
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=result)
 
 
@@ -294,7 +318,9 @@ async def remove_contribution(
     credit the user's wallet and debit the group, or fail without
     changing any balances.
     """
-    result = await service.remove_contribution(redis, group_id, transaction_in, current_user, background_tasks)
+    result = await service.remove_contribution(
+        redis, group_id, transaction_in, current_user, background_tasks
+    )
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=result)
 
 
@@ -309,11 +335,11 @@ async def group_websocket(
     Authentication is handled via the first message: {"action": "authenticate", "token": "JWT_TOKEN"}
     """
     await websocket.accept()
-    
+
     # Get Redis from WebSocket app state
     redis = websocket.app.state.redis
     user = None
-    
+
     # Helper to safely close websocket
     async def safe_close(code: int, reason: str = ""):
         try:
@@ -330,22 +356,31 @@ async def group_websocket(
             # Wait for authentication message with a timeout
             data = await asyncio.wait_for(websocket.receive_json(), timeout=10.0)
         except asyncio.TimeoutError:
-            await safe_close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication timeout")
+            await safe_close(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Authentication timeout"
+            )
             return
         except WebSocketDisconnect:
             # Client disconnected during handshake
             return
         except Exception:
-            await safe_close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication message")
+            await safe_close(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid authentication message",
+            )
             return
-            
+
         if data.get("action") != "authenticate":
-            await safe_close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
+            await safe_close(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required"
+            )
             return
-             
+
         token = data.get("token")
         if not token:
-            await safe_close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+            await safe_close(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Missing token"
+            )
             return
 
         try:
@@ -360,114 +395,147 @@ async def group_websocket(
         try:
             members = await service.group_repo.get_group_members(group_id)
             is_member = any(str(member.user_id) == str(user.id) for member in members)
-            
+
             if not is_member:
-                logging.warning(f"User {user.id} attempted to connect to group {group_id} without membership")
+                logging.warning(
+                    f"User {user.id} attempted to connect to group {group_id} without membership"
+                )
                 await safe_close(code=status.WS_1008_POLICY_VIOLATION)
                 return
         except Exception as e:
-            logging.error(f"Failed to verify group membership for user {user.id} in group {group_id}: {str(e)}", exc_info=True)
+            logging.error(
+                f"Failed to verify group membership for user {user.id} in group {group_id}: {str(e)}",
+                exc_info=True,
+            )
             await safe_close(code=status.WS_1003_UNSUPPORTED_DATA)
             return
 
         await manager.connect(websocket, group_id)
-        
+
         # Initialize background tasks for async email handling
         background_tasks = WebSocketBackgroundTasks()
 
         # Send auth success message
         try:
-            await websocket.send_json({"status": "authenticated", "user_id": str(user.id)})
+            await websocket.send_json(
+                {"status": "authenticated", "user_id": str(user.id)}
+            )
         except Exception:
             manager.disconnect(websocket, group_id)
             return
-        
+
         try:
             while True:
                 data = await websocket.receive_json()
                 action = data.get("action")
-                
+
                 try:
                     # Validate action field
                     if not action:
-                        await websocket.send_json({"error": "Missing 'action' field in message"})
+                        await websocket.send_json(
+                            {"error": "Missing 'action' field in message"}
+                        )
                         continue
-                    
+
                     if action not in ["contribute", "withdraw"]:
-                        await websocket.send_json({"error": f"Invalid action '{action}'. Supported actions: contribute, withdraw"})
+                        await websocket.send_json(
+                            {
+                                "error": f"Invalid action '{action}'. Supported actions: contribute, withdraw"
+                            }
+                        )
                         continue
-                    
+
                     # Validate data field
                     if "data" not in data or not isinstance(data["data"], dict):
-                        await websocket.send_json({"error": "Missing or invalid 'data' field in message"})
+                        await websocket.send_json(
+                            {"error": "Missing or invalid 'data' field in message"}
+                        )
                         continue
-                    
+
                     response = None
-                    
+
                     if action == "contribute":
                         # Acquire lock to ensure atomic processing and broadcasting order
                         group_lock = await manager.get_group_lock(group_id)
                         async with group_lock:
                             transaction_in = GroupDepositRequest(**data.get("data", {}))
-                            
-                            response = await service.contribute_to_group(redis, group_id, transaction_in, user, background_tasks)
+
+                            response = await service.contribute_to_group(
+                                redis, group_id, transaction_in, user, background_tasks
+                            )
                             response["type"] = "contribution"
-                            
+
                             if response:
                                 # Add user info to response for chat display
                                 response["user"] = {
                                     "id": str(user.id),
                                     "full_name": user.full_name,
                                     "email": user.email,
-                                    "stag": user.stag
+                                    "stag": user.stag,
                                 }
-                                response["timestamp"] = datetime.now(timezone.utc).isoformat()
-                                
-                                await manager.broadcast_with_lock_held(response, group_id)
-                        
+                                response["timestamp"] = datetime.now(
+                                    timezone.utc
+                                ).isoformat()
+
+                                await manager.broadcast_with_lock_held(
+                                    response, group_id
+                                )
+
                     elif action == "withdraw":
                         # Acquire lock to ensure atomic processing and broadcasting order
                         group_lock = await manager.get_group_lock(group_id)
                         async with group_lock:
-                            transaction_in = GroupWithdrawRequest(**data.get("data", {}))
-                            
-                            response = await service.remove_contribution(redis, group_id, transaction_in, user, background_tasks)
+                            transaction_in = GroupWithdrawRequest(
+                                **data.get("data", {})
+                            )
+
+                            response = await service.remove_contribution(
+                                redis, group_id, transaction_in, user, background_tasks
+                            )
                             response["type"] = "withdrawal"
-                            
+
                             if response:
                                 response["user"] = {
                                     "id": str(user.id),
                                     "full_name": user.full_name,
                                     "email": user.email,
-                                    "stag": user.stag
+                                    "stag": user.stag,
                                 }
-                                response["timestamp"] = datetime.now(timezone.utc).isoformat()
-                                await manager.broadcast_with_lock_held(response, group_id)
-                    
+                                response["timestamp"] = datetime.now(
+                                    timezone.utc
+                                ).isoformat()
+                                await manager.broadcast_with_lock_held(
+                                    response, group_id
+                                )
+
                     if response:
                         # Add user info to response for chat display
                         response["user"] = {
                             "id": str(user.id),
                             "full_name": user.full_name,
                             "email": user.email,
-                            "stag": user.stag
+                            "stag": user.stag,
                         }
                         response["timestamp"] = datetime.now(timezone.utc).isoformat()
-                        
+
                         await manager.broadcast(response, group_id)
-                        
+
                 except Exception as e:
-                    logging.error(f"Error processing WebSocket action for group {group_id}: {str(e)}", exc_info=True)
+                    logging.error(
+                        f"Error processing WebSocket action for group {group_id}: {str(e)}",
+                        exc_info=True,
+                    )
                     # Send user-friendly error message without exposing implementation details
                     error_message = "Failed to process transaction. Please try again."
-                    
+
                     # Only expose specific error types that are safe
                     from app.core.utils.exceptions import CustomException
+
                     if isinstance(e, CustomException):
-                        error_message = e.detail if hasattr(e, 'detail') else str(e)
-                    
+                        error_message = e.detail if hasattr(e, "detail") else str(e)
+
                     await websocket.send_json({"error": error_message})
-                    
+
         except WebSocketDisconnect:
             # Expected: client disconnected normally
             manager.disconnect(websocket, group_id)
@@ -477,15 +545,24 @@ async def group_websocket(
                 manager.disconnect(websocket, group_id)
                 return
             # Log other runtime errors
-            logging.error(f"RuntimeError in WebSocket for group {group_id}: {str(e)}", exc_info=True)
+            logging.error(
+                f"RuntimeError in WebSocket for group {group_id}: {str(e)}",
+                exc_info=True,
+            )
             manager.disconnect(websocket, group_id)
         except Exception as e:
             # Unexpected: log for debugging and monitoring
-            logging.error(f"Unexpected error in WebSocket for group {group_id}: {str(e)}", exc_info=True)
+            logging.error(
+                f"Unexpected error in WebSocket for group {group_id}: {str(e)}",
+                exc_info=True,
+            )
             manager.disconnect(websocket, group_id)
     except Exception as e:
         # Catch-all for outer try block (auth phase)
         # Only log if it's not a disconnect
         if not isinstance(e, (WebSocketDisconnect, RuntimeError)):
-            logging.error(f"Unexpected error in WebSocket setup for group {group_id}: {str(e)}", exc_info=True)
+            logging.error(
+                f"Unexpected error in WebSocket setup for group {group_id}: {str(e)}",
+                exc_info=True,
+            )
         await safe_close(code=status.WS_1008_POLICY_VIOLATION)

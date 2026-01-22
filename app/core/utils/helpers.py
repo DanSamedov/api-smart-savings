@@ -18,13 +18,18 @@ def mask_email(email: str) -> str:
     except Exception:
         return "****@****"
 
+
 def mask_data(data: str) -> str:
     """Mask given data (str) for logging."""
     visible = 12 if len(data) > 12 else len(data)
     return data[:visible] + "*" * (len(data) - visible)
 
-def coerce_datetimes(updates: dict[str, Any], datetime_fields: list[str]) -> dict[str, Any]:
+
+def coerce_datetimes(
+    updates: dict[str, Any], datetime_fields: list[str]
+) -> dict[str, Any]:
     from datetime import datetime
+
     for field in datetime_fields:
         if field in updates and isinstance(updates[field], str):
             updates[field] = datetime.fromisoformat(updates[field])

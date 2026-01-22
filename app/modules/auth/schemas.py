@@ -1,6 +1,6 @@
 # app/modules/auth/schemas.py
 
-from pydantic import BaseModel, EmailStr, field_validator, SecretStr
+from pydantic import BaseModel, EmailStr, SecretStr, field_validator
 
 from app.modules.shared.helpers import validate_password_strength
 
@@ -37,6 +37,7 @@ class EmailOnlyRequest(BaseModel):
 
     email: EmailStr
 
+
 class VerificationCodeOnlyRequest(BaseModel):
     """Schema for otp-only requests like confirming account deletion."""
 
@@ -45,6 +46,7 @@ class VerificationCodeOnlyRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     """Schema for password reset requests with token and new password validation."""
+
     reset_token: str
     new_password: SecretStr
 

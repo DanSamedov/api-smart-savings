@@ -2,17 +2,20 @@
 
 from typing import Any
 
-from fastapi import Request, APIRouter, Depends, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from redis.asyncio import Redis
 
-from app.core.utils.exceptions import CustomException
-from app.modules.user.models import User
+from app.api.dependencies import (get_current_user, get_redis, get_user_repo,
+                                  get_user_service)
 from app.core.middleware.rate_limiter import limiter
-from app.core.utils.response import standard_response, FinancialAnalyticsResponse
-from app.api.dependencies import get_current_user, get_user_service, get_redis, get_user_repo
+from app.core.utils.exceptions import CustomException
+from app.core.utils.response import (FinancialAnalyticsResponse,
+                                     standard_response)
+from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
+from app.modules.user.schemas import (ChangeEmailRequest,
+                                      ChangePasswordRequest, UserUpdate)
 from app.modules.user.service import UserService
-from app.modules.user.schemas import UserUpdate, ChangePasswordRequest, ChangeEmailRequest
 
 router = APIRouter()
 
@@ -20,8 +23,9 @@ router = APIRouter()
 @router.get("/me", status_code=status.HTTP_200_OK)
 @limiter.limit("20/minute")
 async def get_user_info(
-    request: Request, current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
 ) -> dict[str, Any]:
     """
     Retrieve the currently authenticated user's profile details.
@@ -39,21 +43,20 @@ async def get_user_info(
     """
     user_data = await user_service.get_user_details(current_user=current_user)
 
-
     return standard_response(
         status="success", message="User details retrieved successfully.", data=user_data
     )
-    
+
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
 async def change_user_password(
-        request: Request,
-        change_password_request: ChangePasswordRequest,
-        background_tasks: BackgroundTasks,
-        user_repo: UserRepository = Depends(get_user_repo),
-        current_user: User = Depends(get_current_user),
-        user_service: UserService = Depends(get_user_service)
+    request: Request,
+    change_password_request: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
+    user_repo: UserRepository = Depends(get_user_repo),
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
 ) -> dict[str, Any]:
     """
     Update currently authenticated user password, requires current password for verification.
@@ -71,11 +74,14 @@ async def change_user_password(
     user = await user_repo.get_by_id(current_user.id)
     if not user:
         raise CustomException.e404_not_found("User not found.")
-    await user_service.update_user_password(change_password_request=change_password_request, current_user=user, background_tasks=background_tasks)
+    await user_service.update_user_password(
+        change_password_request=change_password_request,
+        current_user=user,
+        background_tasks=background_tasks,
+    )
 
     return standard_response(
-        status="success",
-        message="You have successfully changed your password."
+        status="success", message="You have successfully changed your password."
     )
 
 
@@ -87,7 +93,7 @@ async def update_user_info(
     redis: Redis = Depends(get_redis),
     user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> dict[str, Any]:
     """
     Partially update the currently authenticated user's details.
@@ -105,7 +111,9 @@ async def update_user_info(
     if not user:
         raise CustomException.e404_not_found("User not found.")
 
-    response = await user_service.update_user_details(redis=redis, update_request=update_request, current_user=user)
+    response = await user_service.update_user_details(
+        redis=redis, update_request=update_request, current_user=user
+    )
     msg = response.get("message")
 
     return standard_response(
@@ -123,7 +131,7 @@ async def change_user_email(
     redis: Redis = Depends(get_redis),
     user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> dict[str, Any]:
     """
     Change the email address for the currently authenticated user.
@@ -155,12 +163,12 @@ async def change_user_email(
         redis=redis,
         change_email_request=change_email_request,
         current_user=user,
-        background_tasks=background_tasks
+        background_tasks=background_tasks,
     )
-    
+
     return standard_response(
         status="success",
-        message="Email change request processed. Please verify your new email address using the code sent to your new email."
+        message="Email change request processed. Please verify your new email address using the code sent to your new email.",
     )
 
 
@@ -169,7 +177,7 @@ async def change_user_email(
 async def view_login_history(
     request: Request,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> dict[str, Any]:
     """
     Retrieve login activity details for the current user.
@@ -184,38 +192,41 @@ async def view_login_history(
         HTTPException: 429 Too Many Requests if rate limit exceeded
     """
     history = await user_service.get_login_history(current_user=current_user)
-    
+
     return standard_response(
-        status="success",
-        message="Login history retrieved successfully",
-        data=history
+        status="success", message="Login history retrieved successfully", data=history
     )
 
 
-@router.get("/me/financial-analytics", status_code=status.HTTP_200_OK, response_model=FinancialAnalyticsResponse)
+@router.get(
+    "/me/financial-analytics",
+    status_code=status.HTTP_200_OK,
+    response_model=FinancialAnalyticsResponse,
+)
 @limiter.limit("5/minute")
 async def get_financial_analytics(
     request: Request,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> FinancialAnalyticsResponse:
     """
     Retrieve comprehensive financial analytics for the authenticated user.
-    
+
     This endpoint aggregates key metrics from wallet transactions and group contributions
     to provide insights into the user's financial activity, spending patterns, and savings
     behavior. The data is structured for use in charts and dashboards.
-    
+
 
     Returns:
         FinancialAnalyticsResponse: Standard response containing comprehensive analytics data
-        
+
     Raises:
         HTTPException: 429 Too Many Requests if rate limit exceeded
     """
-    analytics_data = await user_service.get_financial_analytics(current_user=current_user)
-    
+    analytics_data = await user_service.get_financial_analytics(
+        current_user=current_user
+    )
+
     return FinancialAnalyticsResponse(
-        data=analytics_data,
-        message="Financial analytics retrieved successfully."
+        data=analytics_data, message="Financial analytics retrieved successfully."
     )

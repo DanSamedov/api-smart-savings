@@ -1,9 +1,7 @@
 # app/core/utils/cache.py
 
-import json
-
 import fnmatch
-
+import json
 from typing import Any, Callable, Optional
 
 from pydantic import BaseModel
@@ -15,10 +13,7 @@ from app.core.utils.helpers import mask_data
 
 
 async def cache_or_get(
-        redis: Redis,
-        key: str,
-        fetch_func: Callable[[], Any],
-        ttl: int = settings.CACHE_TTL
+    redis: Redis, key: str, fetch_func: Callable[[], Any], ttl: int = settings.CACHE_TTL
 ):
     """
     Check if key exists in redis, if yes, return json of cached data
@@ -66,11 +61,11 @@ async def invalidate_cache(redis: Redis, pattern: str):
         pattern (str): Pattern to match keys, e.g. 'user_current:*'
     """
     # Scan keys instead of KEYS for performance on large datasets
-    cursor = b'0'
+    cursor = b"0"
     while cursor:
         cursor, keys = await redis.scan(cursor=cursor, match=pattern, count=100)
         if keys:
             await redis.delete(*keys)
             logger.info(f"CACHE INVALIDATED: {mask_data(pattern)}")
-        if cursor == 0 or cursor == b'0':
+        if cursor == 0 or cursor == b"0":
             break

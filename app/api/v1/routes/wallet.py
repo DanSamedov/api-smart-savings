@@ -2,22 +2,26 @@
 
 from typing import Any
 
-from fastapi import Request, APIRouter, Depends, status, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from redis.asyncio import Redis
 
-from app.core.utils.exceptions import CustomException
-from app.modules.user.models import User
+from app.api.dependencies import (get_current_user, get_redis, get_user_repo,
+                                  get_wallet_service)
 from app.core.middleware.rate_limiter import limiter
+from app.core.utils.exceptions import CustomException
 from app.core.utils.response import standard_response
-from app.api.dependencies import get_current_user, get_wallet_service, get_redis, get_user_repo
+from app.modules.user.models import User
 from app.modules.user.repository import UserRepository
+from app.modules.wallet.schemas import (TransactionRequest,
+                                        WalletBalanceResponse)
 from app.modules.wallet.service import WalletService
-from app.modules.wallet.schemas import TransactionRequest, WalletBalanceResponse
 
 router = APIRouter()
 
 
-@router.get("/balance", status_code=status.HTTP_200_OK, response_model=WalletBalanceResponse)
+@router.get(
+    "/balance", status_code=status.HTTP_200_OK, response_model=WalletBalanceResponse
+)
 @limiter.limit("15/minute")
 async def get_wallet_balance(
     request: Request,
@@ -55,8 +59,12 @@ async def get_wallet_transactions(
             - total_pages: total number of pages available
             - total_transactions: total number of transactions
     """
-    response = await wallet_service.get_transactions(redis=redis, current_user=current_user, page=page, page_size=page_size)
-    return standard_response(message="Transaction history retrieved successfully.", data=response)
+    response = await wallet_service.get_transactions(
+        redis=redis, current_user=current_user, page=page, page_size=page_size
+    )
+    return standard_response(
+        message="Transaction history retrieved successfully.", data=response
+    )
 
 
 @router.post("/deposit", status_code=status.HTTP_200_OK)
@@ -68,7 +76,7 @@ async def deposit(
     redis: Redis = Depends(get_redis),
     user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
-    wallet_service: WalletService = Depends(get_wallet_service)
+    wallet_service: WalletService = Depends(get_wallet_service),
 ) -> dict[str, Any]:
     """
     Process a deposit transaction for the authenticated user's wallet.
@@ -94,7 +102,9 @@ async def deposit(
         raise CustomException.e404_not_found("User not found.")
     result = await wallet_service.deposit(
         redis=redis,
-        transaction_request=transaction_request, current_user=user, background_tasks=background_tasks
+        transaction_request=transaction_request,
+        current_user=user,
+        background_tasks=background_tasks,
     )
 
     return standard_response(
@@ -113,7 +123,7 @@ async def withdraw(
     redis: Redis = Depends(get_redis),
     user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
-    wallet_service: WalletService = Depends(get_wallet_service)
+    wallet_service: WalletService = Depends(get_wallet_service),
 ) -> dict[str, Any]:
     """
     Process a withdrawal transaction from the authenticated user's wallet.
@@ -141,7 +151,9 @@ async def withdraw(
 
     result = await wallet_service.withdraw(
         redis=redis,
-        transaction_request=transaction_request, current_user=user, background_tasks=background_tasks
+        transaction_request=transaction_request,
+        current_user=user,
+        background_tasks=background_tasks,
     )
 
     return standard_response(
@@ -149,4 +161,3 @@ async def withdraw(
         message="Withdrawal request completed successfully.",
         data=result,
     )
-

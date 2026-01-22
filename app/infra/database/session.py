@@ -1,7 +1,7 @@
 # app/infra/database/session.py
 
-from typing import AsyncGenerator
 import os
+from typing import AsyncGenerator
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
@@ -21,9 +21,7 @@ POSTGRES_DB = os.getenv("POSTGRES_DB")
 encoded_password = quote_plus(POSTGRES_PASSWORD)
 
 # Async database URL
-DATABASE_URL = (
-    f"postgresql+asyncpg://{POSTGRES_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
-)
+DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
 
 # Async engine
 async_engine = create_async_engine(DATABASE_URL, echo=False)
@@ -33,13 +31,15 @@ AsyncSessionLocal = sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
-) # type: ignore
+)  # type: ignore
+
 
 # Set UTC timezone for DB
 async def set_utc_timezone():
     async with AsyncSessionLocal() as session:
         await session.execute(text("SET TIMEZONE TO 'UTC';"))
         await session.commit()
+
 
 # Dependency for FastAPI
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

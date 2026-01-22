@@ -1,17 +1,17 @@
 # app/infra/database/init_db.py
 
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import select
 
 from app.core.security.hashing import hash_password
+from app.core.tasks import \
+    events  # Imported to register the 'before_delete' event
 from app.infra.database.session import AsyncSessionLocal
-from app.modules.user.models import User
 from app.modules.gdpr.models import GDPRRequest
 from app.modules.shared.enums import Role
-
-from app.core.tasks import events # Imported to register the 'before_delete' event
+from app.modules.user.models import User
 from app.modules.wallet.models import Wallet
 
 test_emails_str = os.getenv("TEST_EMAIL_ACCOUNTS")
@@ -26,7 +26,9 @@ async def init_test_accounts():
         )
         return
 
-    test_emails = [email.strip() for email in test_emails_str.split(",") if email.strip()]
+    test_emails = [
+        email.strip() for email in test_emails_str.split(",") if email.strip()
+    ]
     if not test_emails:
         print(
             "\n[DB INIT] (w) No valid test emails found in TEST_EMAIL_ACCOUNTS.",
@@ -79,7 +81,11 @@ async def init_test_accounts():
         await session.commit()
 
         created_emails = [user.email for user in users_to_add]
-        print(f"[DB INIT] (i) Created test accounts: {', '.join(created_emails)}", flush=True)
+        print(
+            f"[DB INIT] (i) Created test accounts: {', '.join(created_emails)}",
+            flush=True,
+        )
+
 
 async def soft_delete_test_users(grace_days: int = 0):
     """
@@ -90,7 +96,9 @@ async def soft_delete_test_users(grace_days: int = 0):
     if not test_emails_str:
         return
 
-    test_emails = [email.strip() for email in test_emails_str.split(",") if email.strip()]
+    test_emails = [
+        email.strip() for email in test_emails_str.split(",") if email.strip()
+    ]
     async with AsyncSessionLocal() as session:
         for email in test_emails:
             stmt = select(User).where(User.email == email)
@@ -98,6 +106,8 @@ async def soft_delete_test_users(grace_days: int = 0):
             user = result.scalar_one_or_none()
             if user:
                 user.is_deleted = True
-                user.deleted_at = datetime.now(timezone.utc) - timedelta(days=grace_days)
+                user.deleted_at = datetime.now(timezone.utc) - timedelta(
+                    days=grace_days
+                )
                 session.add(user)
         await session.commit()

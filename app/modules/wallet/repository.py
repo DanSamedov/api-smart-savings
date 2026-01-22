@@ -1,16 +1,15 @@
 # app/modules/wallet/repository.py
 
-from typing import Optional, Any, Coroutine, List
-from uuid import UUID
 from decimal import Decimal
+from typing import Any, Coroutine, List, Optional
+from uuid import UUID
 
-from sqlalchemy.future import select
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
-from app.modules.wallet.models import Wallet
-from app.modules.wallet.models import Transaction
 from app.modules.shared.enums import TransactionStatus
+from app.modules.wallet.models import Transaction, Wallet
 
 
 class WalletRepository:
@@ -40,16 +39,18 @@ class WalletRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update_locked_amount(self, wallet_id: UUID, amount_delta: Decimal) -> None:
+    async def update_locked_amount(
+        self, wallet_id: UUID, amount_delta: Decimal
+    ) -> None:
         """
         Update wallet's locked amount by a delta.
-        
+
         Args:
             wallet_id (UUID): The wallet ID.
             amount_delta (Decimal): The amount to add (positive) or subtract (negative).
         """
         from sqlalchemy import update
-        
+
         await self.db.execute(
             update(Wallet)
             .where(Wallet.id == wallet_id)
@@ -80,17 +81,27 @@ class TransactionRepository:
 
     async def get_user_transactions(self, user_id: UUID) -> List[Transaction]:
         """Retrieve all transactions for a given user."""
-        stmt = select(Transaction).where(Transaction.owner_id == user_id).order_by(Transaction.created_at.desc())
+        stmt = (
+            select(Transaction)
+            .where(Transaction.owner_id == user_id)
+            .order_by(Transaction.created_at.desc())
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def get_user_transactions_count(self, user_id: UUID) -> int:
         """Return total number of transactions for a given user."""
-        stmt = select(func.count()).select_from(Transaction).where(Transaction.owner_id == user_id)
+        stmt = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(Transaction.owner_id == user_id)
+        )
         result = await self.db.execute(stmt)
         return int(result.scalar() or 0)
 
-    async def get_user_transactions_paginated(self, user_id: UUID, offset: int, limit: int) -> List[Transaction]:
+    async def get_user_transactions_paginated(
+        self, user_id: UUID, offset: int, limit: int
+    ) -> List[Transaction]:
         """Retrieve a page of transactions for a given user ordered by most recent first.
 
         Args:

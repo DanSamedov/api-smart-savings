@@ -4,16 +4,15 @@ import json
 import logging
 import sys
 import time
-from typing import Optional
 from logging.handlers import RotatingFileHandler
 from pathlib import Path, PurePosixPath
+from typing import Optional
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from app.core.security.hashing import hash_ip
-
 
 # Detect environment
 ENV = settings.APP_ENV
@@ -130,15 +129,19 @@ def get_request_log_message(status_code: int) -> str:
 def set_latest_latency_filtered(req: Request, ptime: float):
     """Filter `health` endpoint from being set as latest req latency."""
     from app.main import app_metrics
-    last_segment = PurePosixPath(req.url.path).name  # Only skip if the last segment of the path is 'health'
+
+    last_segment = PurePosixPath(
+        req.url.path
+    ).name  # Only skip if the last segment of the path is 'health'
     if last_segment != "health" and "admin" not in req.url.path:
         app_metrics.set_latest_response_latency(ptime, req.url.path, req.method)
+
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Import here to avoid circular dependency
         from app.main import app_metrics
-        
+
         ip = request.client.host
         masked_ip = hash_ip(ip)
         start_time = time.time()
@@ -155,7 +158,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             if isinstance(exc, RateLimitExceeded):
                 status_code = 429
                 message = "Request rate-limited"
-                
+
                 # Run logging in a separate thread to avoid blocking the event loop
                 await asyncio.get_running_loop().run_in_executor(
                     None,
@@ -168,7 +171,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                             "completed_in_ms": process_time,
                             "ip_anonymized": masked_ip,
                         },
-                    )
+                    ),
                 )
             # Re-raise for FastAPI exception handlers
             raise
@@ -176,9 +179,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Normal requests
         process_time = (time.time() - start_time) * 1000
         set_latest_latency_filtered(req=request, ptime=process_time)
-        
+
         message = get_request_log_message(response.status_code)
-        
+
         # Run logging in a separate thread to avoid blocking the event loop
         await asyncio.get_running_loop().run_in_executor(
             None,
@@ -191,7 +194,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     "completed_in_ms": process_time,
                     "ip_anonymized": masked_ip,
                 },
-            )
+            ),
         )
 
         return response
@@ -205,11 +208,13 @@ async def log_logs_cleanup(message: str = None):
         None,
         lambda: cleanup_logger.info(
             message or "Log cleanup executed", extra={"event": "log_cleanup"}
-        )
+        ),
     )
 
 
-def _cleanup_old_logs_sync(log_dir: Optional[Path] = None, retention_days: Optional[int] = None):
+def _cleanup_old_logs_sync(
+    log_dir: Optional[Path] = None, retention_days: Optional[int] = None
+):
     """Synchronous implementation of log cleanup."""
     if ENV == "production":
         return
@@ -251,9 +256,10 @@ def _cleanup_old_logs_sync(log_dir: Optional[Path] = None, retention_days: Optio
                 )
 
 
-async def cleanup_old_logs(log_dir: Optional[Path] = None, retention_days: Optional[int] = None):
+async def cleanup_old_logs(
+    log_dir: Optional[Path] = None, retention_days: Optional[int] = None
+):
     """Delete old logs based on retention days (async wrapper)."""
     await asyncio.get_running_loop().run_in_executor(
-        None,
-        lambda: _cleanup_old_logs_sync(log_dir, retention_days)
+        None, lambda: _cleanup_old_logs_sync(log_dir, retention_days)
     )

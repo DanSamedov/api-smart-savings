@@ -1,25 +1,19 @@
 # tests/test_gdpr/test_gdpr_service.py
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from app.modules.gdpr.helpers import create_gdpr_pdf
+import pytest
 
-from app.modules.gdpr.service import GDPRService
-from app.modules.user.models import User
-from app.modules.wallet.models import Wallet, Transaction
+from app.modules.gdpr.helpers import create_gdpr_pdf
 from app.modules.gdpr.models import GDPRRequest
-from app.modules.shared.enums import (
-    Role,
-    Currency,
-    TransactionType,
-    TransactionStatus,
-    GDPRRequestType,
-    GDPRRequestStatus,
-    NotificationType,
-)
+from app.modules.gdpr.service import GDPRService
+from app.modules.shared.enums import (Currency, GDPRRequestStatus,
+                                      GDPRRequestType, NotificationType, Role,
+                                      TransactionStatus, TransactionType)
+from app.modules.user.models import User
+from app.modules.wallet.models import Transaction, Wallet
 
 
 @pytest.fixture
@@ -102,8 +96,16 @@ def gdpr_service():
     notification_manager = AsyncMock()
 
     ims_repo = AsyncMock()
-    
-    return GDPRService(user_repo, wallet_repo, gdpr_repo, transaction_repo, notification_manager, ims_repo)
+
+    return GDPRService(
+        user_repo,
+        wallet_repo,
+        gdpr_repo,
+        transaction_repo,
+        notification_manager,
+        ims_repo,
+    )
+
 
 class TestGenerateGDPRSummary:
     """Tests for generate_gdpr_summary method."""
@@ -115,7 +117,9 @@ class TestGenerateGDPRSummary:
         """Test successful GDPR summary generation."""
         # Setup mocks
         gdpr_service.wallet_repo.get_wallet_by_user_id.return_value = mock_wallet
-        gdpr_service.transaction_repo.get_user_transactions.return_value = [mock_transaction]
+        gdpr_service.transaction_repo.get_user_transactions.return_value = [
+            mock_transaction
+        ]
         gdpr_service.gdpr_repo.get_user_gdpr_requests.return_value = [mock_gdpr_request]
         gdpr_service.ims_repo.get_actions_by_user.return_value = []
 
@@ -146,7 +150,9 @@ class TestGenerateGDPRSummary:
 
         # Verify GDPR requests
         assert len(result["gdpr_requests"]) == 1
-        assert result["gdpr_requests"][0]["status"] == GDPRRequestStatus.PROCESSING.value
+        assert (
+            result["gdpr_requests"][0]["status"] == GDPRRequestStatus.PROCESSING.value
+        )
 
     @pytest.mark.asyncio
     async def test_generate_gdpr_summary_no_wallet(self, gdpr_service, mock_user):
@@ -301,13 +307,17 @@ class TestSendGDPRPDFEmail:
         password = "test1234"
 
         # Execute
-        await gdpr_service.send_gdpr_pdf_email(user_email, full_name, pdf_bytes, password)
+        await gdpr_service.send_gdpr_pdf_email(
+            user_email, full_name, pdf_bytes, password
+        )
 
         # Verify
         gdpr_service.notification_manager.send.assert_called_once()
         call_args = gdpr_service.notification_manager.send.call_args
 
-        assert call_args.kwargs["notification_type"] == NotificationType.GDPR_DATA_EXPORT
+        assert (
+            call_args.kwargs["notification_type"] == NotificationType.GDPR_DATA_EXPORT
+        )
         assert call_args.kwargs["recipients"] == [user_email]
         assert "full_name" in call_args.kwargs["context"]
         assert call_args.kwargs["context"]["full_name"] == full_name
@@ -317,9 +327,9 @@ class TestSendGDPRPDFEmail:
         assert len(call_args.kwargs["attachments"]) == 1
         # Attachment should be an UploadFile object
         attachment = call_args.kwargs["attachments"][0]
-        assert hasattr(attachment, 'filename')
-        assert attachment.filename.endswith('.pdf')
-        assert hasattr(attachment, 'file')
+        assert hasattr(attachment, "filename")
+        assert attachment.filename.endswith(".pdf")
+        assert hasattr(attachment, "file")
 
     @pytest.mark.asyncio
     async def test_send_gdpr_pdf_email_no_name(self, gdpr_service):
@@ -331,7 +341,9 @@ class TestSendGDPRPDFEmail:
         password = "test1234"
 
         # Execute
-        await gdpr_service.send_gdpr_pdf_email(user_email, full_name, pdf_bytes, password)
+        await gdpr_service.send_gdpr_pdf_email(
+            user_email, full_name, pdf_bytes, password
+        )
 
         # Verify
         gdpr_service.notification_manager.send.assert_called_once()
@@ -353,8 +365,9 @@ class TestRequestExportOfData:
         gdpr_service.gdpr_repo.create_request.return_value = mock_gdpr_request
 
         # Execute - service now uses current_user directly
-        with patch("app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1"), \
-             patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip_value"):
+        with patch(
+            "app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1"
+        ), patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip_value"):
             await gdpr_service.request_export_of_data(
                 mock_request, mock_user, background_tasks=None
             )
@@ -374,8 +387,9 @@ class TestRequestExportOfData:
         gdpr_service.gdpr_repo.create_request.return_value = mock_gdpr_request
 
         # Execute - service now uses current_user directly
-        with patch("app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1"), \
-             patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip_value"):
+        with patch(
+            "app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1"
+        ), patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip_value"):
             await gdpr_service.request_export_of_data(
                 mock_request, mock_user, background_tasks=None
             )
@@ -422,7 +436,9 @@ class TestProcessAndSendGDPRExport:
         assert update_call[0][1]["status"] == GDPRRequestStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_process_and_send_user_not_found(self, gdpr_service, mock_gdpr_request):
+    async def test_process_and_send_user_not_found(
+        self, gdpr_service, mock_gdpr_request
+    ):
         """Test handling when user is not found during processing."""
         # Setup
         gdpr_service.user_repo.get_by_id.return_value = None
@@ -457,3 +473,172 @@ class TestProcessAndSendGDPRExport:
         last_call = update_calls[-1]
         assert last_call[0][1]["status"] == GDPRRequestStatus.REFUSED
         assert "refusal_reason" in last_call[0][1]
+
+
+class TestConsentManagement:
+    """Tests for consent management methods."""
+
+    @pytest.mark.asyncio
+    @patch("app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1")
+    @patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip")
+    async def test_add_consent_success(
+        self, mock_hash, mock_ip, gdpr_service, mock_user
+    ):
+        """Test successful addition of consent."""
+        from app.modules.gdpr.models import UserConsentAudit
+        from app.modules.gdpr.schemas import ConsentCreate
+        from app.modules.shared.enums import ConsentStatus, ConsentType
+
+        consent_data = ConsentCreate(
+            consent_type=ConsentType.SAVEBUDDY_AI, version="1.0"
+        )
+        mock_request = MagicMock()
+        mock_request.headers = {"user-agent": "test-agent"}
+
+        expected_consent = UserConsentAudit(
+            id=uuid4(),
+            user_id=mock_user.id,
+            consent_type=ConsentType.SAVEBUDDY_AI,
+            consent_status=ConsentStatus.GRANTED,
+            version="1.0",
+            granted_at=datetime.now(timezone.utc),
+        )
+        gdpr_service.gdpr_repo.get_active_consent.return_value = None
+        gdpr_service.gdpr_repo.create_consent.return_value = expected_consent
+
+        result = await gdpr_service.add_consent(mock_request, mock_user, consent_data)
+
+        assert result == expected_consent
+        gdpr_service.gdpr_repo.create_consent.assert_called_once()
+        args = gdpr_service.gdpr_repo.create_consent.call_args[0][0]
+        assert args.user_id == mock_user.id
+        assert args.consent_type == ConsentType.SAVEBUDDY_AI
+        assert args.consent_status == ConsentStatus.GRANTED
+
+    @pytest.mark.asyncio
+    @patch("app.modules.gdpr.service.get_client_ip", return_value="127.0.0.1")
+    @patch("app.modules.gdpr.service.hash_ip", return_value="hashed_ip")
+    async def test_add_consent_with_caching(
+        self, mock_hash, mock_ip, gdpr_service, mock_user
+    ):
+        """Test add_consent with redis cache invalidation."""
+        from app.modules.gdpr.schemas import ConsentCreate
+        from app.modules.shared.enums import ConsentType
+
+        consent_data = ConsentCreate(
+            consent_type=ConsentType.SAVEBUDDY_AI, version="1.0"
+        )
+        mock_request = MagicMock()
+        mock_request.headers = {"user-agent": "test-agent"}
+        mock_redis = AsyncMock()
+
+        gdpr_service.gdpr_repo.get_active_consent.return_value = None
+
+        with patch(
+            "app.modules.gdpr.service.invalidate_cache", new_callable=AsyncMock
+        ) as mock_invalidate:
+            await gdpr_service.add_consent(
+                mock_request, mock_user, consent_data, redis=mock_redis
+            )
+            mock_invalidate.assert_called_once()
+            assert (
+                f"user_consent:{mock_user.id}:{ConsentType.SAVEBUDDY_AI}"
+                in mock_invalidate.call_args[0][1]
+            )
+
+    @pytest.mark.asyncio
+    async def test_revoke_consent_success(self, gdpr_service, mock_user):
+        """Test successful revocation of consent."""
+        from app.modules.gdpr.models import UserConsentAudit
+        from app.modules.shared.enums import ConsentStatus, ConsentType
+
+        consent_id = uuid4()
+        existing_consent = UserConsentAudit(
+            id=consent_id,
+            user_id=mock_user.id,
+            consent_type=ConsentType.SAVEBUDDY_AI,
+            consent_status=ConsentStatus.GRANTED,
+            version="1.0",
+            granted_at=datetime.now(timezone.utc),
+        )
+        gdpr_service.gdpr_repo.get_consent_by_id.return_value = existing_consent
+        gdpr_service.gdpr_repo.update_consent.return_value = existing_consent
+
+        result = await gdpr_service.revoke_consent(mock_user, consent_id)
+
+        assert result.consent_status == ConsentStatus.REVOKED
+        assert result.revoked_at is not None
+        gdpr_service.gdpr_repo.update_consent.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_revoke_consent_not_owned(self, gdpr_service, mock_user):
+        """Test revocation fails if user doesn't own the consent."""
+        from app.modules.gdpr.models import UserConsentAudit
+        from app.modules.shared.enums import ConsentStatus, ConsentType
+
+        consent_id = uuid4()
+        existing_consent = UserConsentAudit(
+            id=consent_id,
+            user_id=uuid4(),  # Different user
+            consent_type=ConsentType.SAVEBUDDY_AI,
+            consent_status=ConsentStatus.GRANTED,
+            version="1.0",
+        )
+        gdpr_service.gdpr_repo.get_consent_by_id.return_value = existing_consent
+
+        from app.core.utils.exceptions import CustomException
+
+        with pytest.raises(Exception):  # CustomException.e403_forbidden
+            await gdpr_service.revoke_consent(mock_user, consent_id)
+
+    @pytest.mark.asyncio
+    async def test_check_consent_active_true(self, gdpr_service, mock_user):
+        """Test check_consent_active returns True when granted."""
+        from app.modules.gdpr.models import UserConsentAudit
+        from app.modules.shared.enums import ConsentStatus, ConsentType
+
+        existing_consent = UserConsentAudit(
+            id=uuid4(),
+            user_id=mock_user.id,
+            consent_type=ConsentType.SAVEBUDDY_AI,
+            consent_status=ConsentStatus.GRANTED,
+            version="1.0",
+        )
+        gdpr_service.gdpr_repo.get_active_consent.return_value = existing_consent
+
+        result = await gdpr_service.check_consent_active(
+            mock_user.id, ConsentType.SAVEBUDDY_AI
+        )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_check_consent_active_false(self, gdpr_service, mock_user):
+        """Test check_consent_active returns False when no consent."""
+        from app.modules.shared.enums import ConsentType
+
+        gdpr_service.gdpr_repo.get_active_consent.return_value = None
+
+        result = await gdpr_service.check_consent_active(
+            mock_user.id, ConsentType.SAVEBUDDY_AI
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_check_consent_active_caching_hit(self, gdpr_service, mock_user):
+        """Test check_consent_active uses cache."""
+        from app.modules.shared.enums import ConsentType
+
+        mock_redis = AsyncMock()
+
+        with patch(
+            "app.modules.gdpr.service.cache_or_get", new_callable=AsyncMock
+        ) as mock_cache:
+            mock_cache.return_value = {"active": True}
+
+            result = await gdpr_service.check_consent_active(
+                mock_user.id, ConsentType.SAVEBUDDY_AI, redis=mock_redis
+            )
+
+            assert result is True
+            mock_cache.assert_called_once()
+            gdpr_service.gdpr_repo.get_active_consent.assert_not_called()

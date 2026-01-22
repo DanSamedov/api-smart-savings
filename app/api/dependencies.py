@@ -2,32 +2,32 @@
 import json
 import secrets
 
-from redis.asyncio import Redis
-from fastapi import Depends, HTTPException, status, Request, WebSocketException
+from fastapi import Depends, HTTPException, Request, WebSocketException, status
 from fastapi.security import (HTTPBasic, HTTPBasicCredentials,
                               OAuth2PasswordBearer)
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security.jwt import decode_token
 from app.core.utils.cache import cache_or_get, invalidate_cache
+from app.core.utils.exceptions import CustomException
 from app.infra.database.session import get_session
 from app.modules.auth.service import AuthService
-from app.modules.gdpr.service import GDPRService
 from app.modules.gdpr.repository import GDPRRepository
+from app.modules.gdpr.service import GDPRService
+from app.modules.group.repository import GroupRepository
+from app.modules.group.service import GroupService
 from app.modules.notifications.email.service import EmailNotificationService
-from app.modules.user.models import User
-from app.modules.user.repository import UserRepository
-from app.core.utils.exceptions import CustomException
-from app.modules.user.service import UserService
-from app.modules.wallet.repository import WalletRepository, TransactionRepository
-from app.modules.wallet.service import WalletService
-from app.modules.shared.enums import Role, ConsentType
 from app.modules.rbac.repository import RBACRepository
 from app.modules.rbac.service import RBACService
-from app.modules.group.service import GroupService
-from app.modules.group.repository import GroupRepository
-
+from app.modules.shared.enums import ConsentType, Role
+from app.modules.user.models import User
+from app.modules.user.repository import UserRepository
+from app.modules.user.service import UserService
+from app.modules.wallet.repository import (TransactionRepository,
+                                           WalletRepository)
+from app.modules.wallet.service import WalletService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 
@@ -36,16 +36,20 @@ security = HTTPBasic()
 USERNAME = settings.DOCS_USERNAME
 PASSWORD = settings.DOCS_PASSWORD
 
+
 async def get_redis(request: Request) -> Redis:
     """Dependency for redis client in app's instance"""
     return request.app.state.redis
+
 
 def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
     """
     Authenticate credentials for the API-Docs URL.
     """
     if USERNAME is None or PASSWORD is None:
-        CustomException.e500_internal_server_error("Configuration error, please contact the development team.")
+        CustomException.e500_internal_server_error(
+            "Configuration error, please contact the development team."
+        )
 
     correct_username = secrets.compare_digest(credentials.username, USERNAME)
     correct_password = secrets.compare_digest(credentials.password, PASSWORD)
@@ -59,10 +63,13 @@ def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
 
     return True
 
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     redis: Redis = Depends(get_redis),
-    user_repo: UserRepository = Depends(lambda session=Depends(get_session): UserRepository(session)),
+    user_repo: UserRepository = Depends(
+        lambda session=Depends(get_session): UserRepository(session)
+    ),
 ) -> User:
     """
     Retrieve the current authenticated user with Redis caching.
@@ -85,10 +92,7 @@ async def get_current_user(
             return _user
 
         user_data = await cache_or_get(
-            redis=redis,
-            key=cache_key,
-            fetch_func=fetch_user,
-            ttl=600
+            redis=redis, key=cache_key, fetch_func=fetch_user, ttl=600
         )
 
         # Reconstruct Pydantic model
@@ -96,7 +100,9 @@ async def get_current_user(
 
         if token_version != user.token_version:
             await invalidate_cache(redis, cache_key)
-            CustomException.e401_unauthorized("Token has been invalidated. Please log in again.")
+            CustomException.e401_unauthorized(
+                "Token has been invalidated. Please log in again."
+            )
 
         if not user.is_verified:
             CustomException.e403_forbidden("Your account is not verified.")
@@ -108,6 +114,7 @@ async def get_current_user(
 
     except Exception as e:
         raise CustomException.e401_unauthorized("Could not validate credentials.")
+
 
 async def get_current_user_ws(
     token: str,
@@ -123,21 +130,24 @@ async def get_current_user_ws(
         token_version: int | None = payload.get("ver")
 
         if not user_email:
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication credentials.")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid authentication credentials.",
+            )
 
         cache_key = f"user_current:{user_email}"
 
         async def fetch_user():
             _user = await user_repo.get_by_email(user_email)
             if not _user:
-                 raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="No account found with this email.")
+                raise WebSocketException(
+                    code=status.WS_1008_POLICY_VIOLATION,
+                    reason="No account found with this email.",
+                )
             return _user
 
         user_data = await cache_or_get(
-            redis=redis,
-            key=cache_key,
-            fetch_func=fetch_user,
-            ttl=600
+            redis=redis, key=cache_key, fetch_func=fetch_user, ttl=600
         )
 
         # Reconstruct Pydantic model
@@ -145,13 +155,22 @@ async def get_current_user_ws(
 
         if token_version != user.token_version:
             await invalidate_cache(redis, cache_key)
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Token has been invalidated. Please log in again.")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Token has been invalidated. Please log in again.",
+            )
 
         if not user.is_verified:
-             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Your account is not verified.")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Your account is not verified.",
+            )
 
         if user.is_deleted:
-             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Your account is scheduled for deletion.")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Your account is scheduled for deletion.",
+            )
 
         return user
 
@@ -159,28 +178,36 @@ async def get_current_user_ws(
         # If it's already a WebSocketException, re-raise it
         if isinstance(e, WebSocketException):
             raise e
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Could not validate credentials.")
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Could not validate credentials.",
+        )
+
 
 async def get_current_admin_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """
     Validate that the current user has administrative privileges.
     """
     if current_user.role not in [Role.ADMIN, Role.SUPER_ADMIN]:
-        CustomException.e403_forbidden("You do not have permission to access this resource.")
+        CustomException.e403_forbidden(
+            "You do not have permission to access this resource."
+        )
     return current_user
 
+
 async def get_current_super_admin_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """
     Validate that the current user has super administrative privileges.
     """
     if current_user.role != Role.SUPER_ADMIN:
-        CustomException.e403_forbidden("You do not have permission to access this resource.")
+        CustomException.e403_forbidden(
+            "You do not have permission to access this resource."
+        )
     return current_user
-
 
 
 # ========================
@@ -193,11 +220,13 @@ async def get_auth_service(db: AsyncSession = Depends(get_session)):
     notification_manager = EmailNotificationService()
     return AuthService(user_repo, wallet_repo, notification_manager)
 
+
 async def get_user_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for user service."""
     user_repo = UserRepository(db)
     notification_manager = EmailNotificationService()
     return UserService(user_repo, notification_manager)
+
 
 async def get_gdpr_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for gdpr service."""
@@ -206,11 +235,20 @@ async def get_gdpr_service(db: AsyncSession = Depends(get_session)):
     gdpr_repo = GDPRRepository(db)
     transaction_repo = TransactionRepository(db)
     notification_manager = EmailNotificationService()
-    
+
     from app.modules.ims.repository import IMSRepository
+
     ims_repo = IMSRepository(db)
-    
-    return GDPRService(user_repo, wallet_repo, gdpr_repo, transaction_repo, notification_manager, ims_repo)
+
+    return GDPRService(
+        user_repo,
+        wallet_repo,
+        gdpr_repo,
+        transaction_repo,
+        notification_manager,
+        ims_repo,
+    )
+
 
 async def get_wallet_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for wallet service."""
@@ -219,10 +257,12 @@ async def get_wallet_service(db: AsyncSession = Depends(get_session)):
     notification_manager = EmailNotificationService()
     return WalletService(wallet_repo, transaction_repo, notification_manager)
 
+
 async def get_rbac_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for rbac service."""
     repo = RBACRepository(db)
     return RBACService(repo)
+
 
 async def get_group_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for group service."""
@@ -239,22 +279,32 @@ async def get_group_service(db: AsyncSession = Depends(get_session)):
 async def get_user_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for user repository."""
     return UserRepository(db)
+
+
 async def get_wallet_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for wallet repository."""
     return WalletRepository(db)
+
+
 async def get_gdpr_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for gdpr repository."""
     return GDPRRepository(db)
+
+
 async def get_rbac_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for rbac repository."""
     return RBACRepository(db)
+
+
 async def get_group_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for group repository."""
     return GroupRepository(db)
 
+
 async def get_ims_repo(db: AsyncSession = Depends(get_session)):
     """Dependency factory for IMS repository."""
     from app.modules.ims.repository import IMSRepository
+
     return IMSRepository(db)
 
 
@@ -265,6 +315,7 @@ async def get_ims_service(db: AsyncSession = Depends(get_session)):
     """Dependency factory for IMS service."""
     from app.modules.ims.repository import IMSRepository
     from app.modules.ims.service import IMSService
+
     ims_repo = IMSRepository(db)
     group_repo = GroupRepository(db)
     return IMSService(ims_repo, group_repo)
@@ -273,12 +324,17 @@ async def get_ims_service(db: AsyncSession = Depends(get_session)):
 async def require_savebuddy_consent(
     current_user: User = Depends(get_current_user),
     gdpr_service: GDPRService = Depends(get_gdpr_service),
+    redis: Redis = Depends(get_redis),
 ) -> bool:
     """
     Dependency to ensure user has granted consent for SaveBuddy AI.
     If consent is revoked or missing, raises 403 Forbidden.
     """
-    is_active = await gdpr_service.check_consent_active(current_user.id, ConsentType.SAVEBUDDY_AI)
+    is_active = await gdpr_service.check_consent_active(
+        current_user.id, ConsentType.SAVEBUDDY_AI, redis
+    )
     if not is_active:
-        CustomException.e403_forbidden("SaveBuddy AI consent is revoked or not granted. Please grant consent to use this feature.")
+        CustomException.e403_forbidden(
+            "SaveBuddy AI consent is revoked or not granted. Please grant consent to use this feature."
+        )
     return True

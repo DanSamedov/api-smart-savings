@@ -1,6 +1,7 @@
 # app/core/utils/exceptions.py
 
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
+
 from fastapi import HTTPException, status
 
 
@@ -9,6 +10,7 @@ class CustomException(HTTPException):
     Base class for custom application exceptions.
     Inherits from HTTPException to allow direct raising or use as a factory.
     """
+
     def __init__(
         self,
         status_code: int,
@@ -45,7 +47,7 @@ class CustomException(HTTPException):
     # Backward Compatibility Methods (Static Factory Methods)
     # These maintain the existing API: CustomException.e400_bad_request(...)
     # -------------------------------------------------------------------------
-    
+
     @staticmethod
     def e400_bad_request(detail: str = "Bad Request."):
         raise CustomException.bad_request(detail)

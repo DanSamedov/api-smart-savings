@@ -2,8 +2,10 @@
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.user.models import User
-from app.modules.wallet.models import Wallet, Transaction
+from app.modules.wallet.models import Transaction, Wallet
+
 
 class RBACRepository:
     def __init__(self, session: AsyncSession):
@@ -13,11 +15,11 @@ class RBACRepository:
         query = select(User).offset(skip).limit(limit)
         result = await self.session.execute(query)
         users = result.scalars().all()
-        
+
         count_query = select(func.count(User.id))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
-        
+
         return users, total
 
     async def get_app_metrics(self):
@@ -33,7 +35,7 @@ class RBACRepository:
         return {
             "transaction_count": trans_count,
             "total_balance_sum": balance_sum,
-            "user_count": user_count
+            "user_count": user_count,
         }
 
     async def get_user_by_id(self, user_id: str):

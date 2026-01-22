@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.modules.group.models import Group, GroupMember, GroupTransactionMessage, RemovedGroupMember
+from app.modules.group.models import (Group, GroupBase, GroupMember,
+                                      GroupTransactionMessage,
+                                      RemovedGroupMember)
 from app.modules.group.schemas import GroupUpdate
-from app.modules.group.models import GroupBase
 from app.modules.shared.enums import GroupRole, TransactionType
 
 
@@ -33,7 +34,9 @@ class GroupRepository:
         self.session.add(new_group)
         await self.session.flush()
 
-        admin_member = GroupMember(group_id=new_group.id, user_id=admin_id, role=GroupRole.ADMIN)
+        admin_member = GroupMember(
+            group_id=new_group.id, user_id=admin_id, role=GroupRole.ADMIN
+        )
         self.session.add(admin_member)
 
         await self.session.commit()
@@ -55,7 +58,7 @@ class GroupRepository:
             select(GroupMember).where(
                 GroupMember.group_id == group_id,
                 GroupMember.user_id == user_id,
-                GroupMember.role == GroupRole.ADMIN
+                GroupMember.role == GroupRole.ADMIN,
             )
         )
         return result.scalar_one_or_none() is not None
@@ -73,8 +76,7 @@ class GroupRepository:
         """
         result = await self.session.execute(
             select(GroupMember).where(
-                GroupMember.group_id == group_id,
-                GroupMember.user_id == user_id
+                GroupMember.group_id == group_id, GroupMember.user_id == user_id
             )
         )
         return result.scalar_one_or_none() is not None
@@ -89,9 +91,7 @@ class GroupRepository:
         Returns:
             Optional[Group]: The group object if found, otherwise None.
         """
-        result = await self.session.execute(
-            select(Group).where(Group.id == group_id)
-        )
+        result = await self.session.execute(select(Group).where(Group.id == group_id))
         return result.scalars().first()
 
     async def get_group_details_by_id(self, group_id: uuid.UUID) -> Optional[Group]:
@@ -113,7 +113,9 @@ class GroupRepository:
         )
         return result.scalars().first()
 
-    async def update_group(self, group_id: uuid.UUID, group_update: GroupUpdate) -> Optional[Group]:
+    async def update_group(
+        self, group_id: uuid.UUID, group_update: GroupUpdate
+    ) -> Optional[Group]:
         """
         Updates a group's attributes.
 
@@ -150,7 +152,9 @@ class GroupRepository:
             return True
         return False
 
-    async def add_member_to_group(self, group_id: uuid.UUID, user_id: uuid.UUID) -> Optional[GroupMember]:
+    async def add_member_to_group(
+        self, group_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Optional[GroupMember]:
         """
         Adds a new member to a group.
 
@@ -170,7 +174,9 @@ class GroupRepository:
             return new_member
         return None
 
-    async def remove_member_from_group(self, group_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    async def remove_member_from_group(
+        self, group_id: uuid.UUID, user_id: uuid.UUID
+    ) -> bool:
         """
         Removes a member from a group.
 
@@ -182,13 +188,15 @@ class GroupRepository:
             bool: True if the member was removed, False otherwise.
         """
         result = await self.session.execute(
-            select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+            select(GroupMember).where(
+                GroupMember.group_id == group_id, GroupMember.user_id == user_id
+            )
         )
         member = result.scalars().first()
         if member:
             removed_member = RemovedGroupMember(group_id=group_id, user_id=user_id)
             self.session.add(removed_member)
-            
+
             await self.session.delete(member)
             await self.session.commit()
             return True
@@ -204,10 +212,14 @@ class GroupRepository:
         Returns:
             List[GroupMember]: A list of all members in the group.
         """
-        result = await self.session.execute(select(GroupMember).where(GroupMember.group_id == group_id))
+        result = await self.session.execute(
+            select(GroupMember).where(GroupMember.group_id == group_id)
+        )
         return result.scalars().all()
 
-    async def get_group_members_with_details(self, group_id: uuid.UUID) -> List[GroupMember]:
+    async def get_group_members_with_details(
+        self, group_id: uuid.UUID
+    ) -> List[GroupMember]:
         """
         Retrieves all members of a specific group with user details eagerly loaded.
 
@@ -224,7 +236,9 @@ class GroupRepository:
         )
         return result.scalars().all()
 
-    async def get_removed_member(self, group_id: uuid.UUID, user_id: uuid.UUID) -> Optional[RemovedGroupMember]:
+    async def get_removed_member(
+        self, group_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Optional[RemovedGroupMember]:
         """
         Retrieves a removed member record.
 
@@ -237,38 +251,45 @@ class GroupRepository:
         """
         result = await self.session.execute(
             select(RemovedGroupMember)
-            .where(RemovedGroupMember.group_id == group_id, RemovedGroupMember.user_id == user_id)
+            .where(
+                RemovedGroupMember.group_id == group_id,
+                RemovedGroupMember.user_id == user_id,
+            )
             .order_by(RemovedGroupMember.removed_at.desc())
         )
         return result.scalars().first()
 
-    async def update_group_balance(self, group_id: uuid.UUID, amount_delta: Decimal) -> None:
+    async def update_group_balance(
+        self, group_id: uuid.UUID, amount_delta: Decimal
+    ) -> None:
         """
         Update a group's current balance by a delta amount.
-        
+
         Args:
             group_id (uuid.UUID): The ID of the group.
             amount_delta (Decimal): The amount to add (positive) or subtract (negative).
         """
         from sqlalchemy import update
-        
+
         await self.session.execute(
             update(Group)
             .where(Group.id == group_id)
             .values(current_balance=Group.current_balance + amount_delta)
         )
 
-    async def update_member_contribution(self, group_id: uuid.UUID, user_id: uuid.UUID, amount_delta: Decimal) -> None:
+    async def update_member_contribution(
+        self, group_id: uuid.UUID, user_id: uuid.UUID, amount_delta: Decimal
+    ) -> None:
         """
         Update a group member's contributed amount by a delta.
-        
+
         Args:
             group_id (uuid.UUID): The ID of the group.
             user_id (uuid.UUID): The ID of the member.
             amount_delta (Decimal): The amount to add (positive) or subtract (negative).
         """
         from sqlalchemy import update
-        
+
         await self.session.execute(
             update(GroupMember)
             .where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
@@ -276,17 +297,21 @@ class GroupRepository:
         )
 
     async def create_group_transaction_message(
-        self, group_id: uuid.UUID, user_id: uuid.UUID, amount: Decimal, transaction_type: TransactionType
+        self,
+        group_id: uuid.UUID,
+        user_id: uuid.UUID,
+        amount: Decimal,
+        transaction_type: TransactionType,
     ) -> GroupTransactionMessage:
         """
         Create a group transaction message record.
-        
+
         Args:
             group_id (uuid.UUID): The ID of the group.
             user_id (uuid.UUID): The ID of the user.
             amount (Decimal): The transaction amount.
             transaction_type (TransactionType): The type of transaction.
-            
+
         Returns:
             GroupTransactionMessage: The created transaction message.
         """
@@ -313,10 +338,9 @@ class GroupRepository:
             select(Group)
             .join(GroupMember, Group.id == GroupMember.group_id)
             .where(GroupMember.user_id == user_id and Group.is_solo == False)
-            
         )
         return result.scalars().all()
-    
+
     async def get_user_goals(self, user_id: uuid.UUID) -> List[Group]:
         """
         Retrieves all goals that a user has.
@@ -334,7 +358,9 @@ class GroupRepository:
         )
         return result.scalars().all()
 
-    async def get_group_transactions(self, group_id: uuid.UUID) -> List[GroupTransactionMessage]:
+    async def get_group_transactions(
+        self, group_id: uuid.UUID
+    ) -> List[GroupTransactionMessage]:
         """
         Retrieves all transactions for a specific group, sorted by latest first.
 

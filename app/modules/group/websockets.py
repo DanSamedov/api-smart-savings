@@ -1,13 +1,14 @@
-from typing import List, Dict
-from fastapi import WebSocket
-import uuid
 import asyncio
-
 import logging
+import uuid
+from typing import Dict, List
+
+from fastapi import WebSocket
+
 
 class ConnectionManager:
     """Manages WebSocket connections for group chat."""
-    
+
     def __init__(self):
         self.active_connections: Dict[uuid.UUID, List[WebSocket]] = {}
         self.group_locks: Dict[uuid.UUID, asyncio.Lock] = {}
@@ -50,7 +51,10 @@ class ConnectionManager:
             return
 
         async with group_lock:
-            tasks = [self._send_message(connection, message, group_id) for connection in connections]
+            tasks = [
+                self._send_message(connection, message, group_id)
+                for connection in connections
+            ]
             await asyncio.gather(*tasks, return_exceptions=True)
 
     async def broadcast_with_lock_held(self, message: dict, group_id: uuid.UUID):
@@ -65,14 +69,22 @@ class ConnectionManager:
             return
 
         # We assume the lock is held by the caller, so we just send
-        tasks = [self._send_message(connection, message, group_id) for connection in connections]
+        tasks = [
+            self._send_message(connection, message, group_id)
+            for connection in connections
+        ]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _send_message(self, connection: WebSocket, message: dict, group_id: uuid.UUID):
+    async def _send_message(
+        self, connection: WebSocket, message: dict, group_id: uuid.UUID
+    ):
         try:
             await connection.send_json(message)
         except Exception as e:
-            logging.warning(f"Failed to send message to connection in group {group_id}: {str(e)}")
+            logging.warning(
+                f"Failed to send message to connection in group {group_id}: {str(e)}"
+            )
             self.disconnect(connection, group_id)
+
 
 manager = ConnectionManager()

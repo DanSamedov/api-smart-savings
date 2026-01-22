@@ -1,8 +1,9 @@
 # app/modules/rbac/service.py
 
+from app.core.utils.exceptions import CustomException
 from app.modules.rbac.repository import RBACRepository
 from app.modules.rbac.schemas import AdminUserUpdate
-from app.core.utils.exceptions import CustomException
+
 
 class RBACService:
     def __init__(self, repo: RBACRepository):
@@ -16,7 +17,7 @@ class RBACService:
             "total": total,
             "page": page,
             "size": size,
-            "pages": (total + size - 1) // size
+            "pages": (total + size - 1) // size,
         }
 
     async def get_app_metrics(self):
@@ -28,16 +29,24 @@ class RBACService:
             raise CustomException.e404_not_found("User not found.")
 
         updates = update_data.model_dump(exclude_unset=True)
-        
+
         if not updates:
             return user
 
         # Explicitly prevent updating restricted fields if they somehow slipped through
         # Though schema validation should handle most, this is a safety net
-        restricted_fields = ['email', 'password_hash', 'id', 'created_at', 'updated_at', 
-                             'deleted_at', 'last_login_at', 'last_failed_login_at', 
-                             'verification_code_expires_at']
-        
+        restricted_fields = [
+            "email",
+            "password_hash",
+            "id",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "last_login_at",
+            "last_failed_login_at",
+            "verification_code_expires_at",
+        ]
+
         for field in restricted_fields:
             if field in updates:
                 del updates[field]
